@@ -8,159 +8,126 @@
 import SwiftUI
 import MessageUI
 
+enum ConverterTab: String, CaseIterable {
+    case manual = "Manual"
+    case camera = "Camera"
+}
+
 struct ContentView: View {
     @StateObject private var viewModel = CurrencyConverterViewModel()
-    @State private var showingFromPicker = false
-    @State private var showingToPicker = false
-    @State private var showingDefaultSettings = false
-    @State private var showCustomMenu = false
-    @State private var showingDisclaimer = false
-    @State private var showingHistory = false
-    @State private var showingContactUs = false
-    @FocusState private var isAmountFieldFocused: Bool
+    @StateObject private var cameraScanner = CameraTextScanner()
+    @State private var selectedTab: ConverterTab = .manual
+    @State private var showSettings = false
+    @State private var showingCurrencySelection = false
     @State private var mailResult: Result<MFMailComposeResult, Error>? = nil
     @State private var showMailError = false
     @State private var mailDidFinish = false
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @State private var manualLayoutHeight: CGFloat = 0
+    @State private var requestAmountFieldFocus = false
     
     var body: some View {
         NavigationView {
             ZStack {
                 VStack(spacing: 20) {
-                    HStack(spacing: 0) {
-                        Text("Curren")
-                            .font(.system(size: 50, weight: .bold))
-                            .foregroundColor(.blue)
-                        Text("$ee")
-                            .font(.system(size: 50, weight: .bold))
-                            .foregroundColor(.green)
+                    ZStack {
+                        manualConverterContent
+                            .opacity(selectedTab == .manual ? 1 : 0)
+                            .allowsHitTesting(selectedTab == .manual)
+                            .zIndex(selectedTab == .manual ? 1 : 0)
+
+                        CameraScanView(viewModel: viewModel, scanner: cameraScanner)
+                            .opacity(selectedTab == .camera ? 1 : 0)
+                            .allowsHitTesting(selectedTab == .camera)
+                            .zIndex(selectedTab == .camera ? 1 : 0)
                     }
-                   
-                    // From Currency Section
-                    VStack(alignment: .leading) {
-                        Text("From")
-                            .font(.headline)
-                            .foregroundColor(isDarkMode ? .white : .black)
-                        
-                        Button(action: { showingFromPicker = true }) {
-                            HStack {
-                                Text(viewModel.fromCurrency.flag)
-                                    .font(.title2)
-                                Text(viewModel.fromCurrency.code)
-                                    .font(.title2)
-                                    .bold()
-                                Text(viewModel.fromCurrency.name)
-                                    .foregroundColor(.gray)
-                                Spacer()
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+                .padding(.top, 4)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gearshape.circle")
+                                .foregroundColor(.green)
                         }
                     }
-                    .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds.width * 0.8 : nil)
-                    
-                    // To Currency Section
-                    VStack(alignment: .leading) {
-                        Text("To")
-                            .font(.headline)
-                            .foregroundColor(isDarkMode ? .white : .black)
-                        
-                        Button(action: { showingToPicker = true }) {
-                            HStack {
-                                Text(viewModel.toCurrency.flag)
-                                    .font(.title2)
-                                Text(viewModel.toCurrency.code)
-                                    .font(.title2)
-                                    .bold()
-                                Text(viewModel.toCurrency.name)
-                                    .foregroundColor(.gray)
-                                Spacer()
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.gray)
+                    ToolbarItem(placement: .principal) {
+                        ConverterTabPicker(selection: Binding(
+                            get: { selectedTab },
+                            set: { newTab in
+                                if newTab != .manual {
+                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                }
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedTab = newTab
+                                }
+                                if newTab == .camera {
+                                    cameraScanner.activate()
+                                } else {
+                                    cameraScanner.deactivate()
+                                }
                             }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
+                        ))
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            showingCurrencySelection = true
+                        }) {
+                            Image(systemName: "dollarsign.circle")
+                                .foregroundColor(.green)
                         }
                     }
-                    .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds.width * 0.8 : nil)
-                        .overlay(
-                            HStack {
-                                Spacer()
-                                Button(action: {
-                                    let temp = viewModel.fromCurrency
-                                    viewModel.fromCurrency = viewModel.toCurrency
-                                    viewModel.toCurrency = temp
-                                }) {
-                                    Image(systemName: "arrow.up.arrow.down")
-                                        .font(.system(size: 16, weight: .regular))
-                                        .foregroundColor(.green)
-                                        .padding(8)
-                                        .background(Color(.systemGray6))
-                                        .clipShape(Circle())
-                                        .shadow(radius: 2)
-                                }
-                                Spacer()
-                            }
-                                .offset(y: -40)
-                        )
-                    
-                    // Amount Input
-                    VStack(alignment: .leading) {
-                        Text("Amount")
-                            .font(.headline)
-                            .foregroundColor(isDarkMode ? .white : .black)
-                        
-                        ZStack {
-                            HStack(spacing: 0) {
-                                Spacer(minLength: 0)
-                                HStack(spacing: 2) {
-                                    TextField("Enter amount", text: Binding(
-                                        get: {
-                                            if let value = Double(viewModel.amount) {
-                                                return formatNumber(value)
-                                            }
-                                            return viewModel.amount
-                                        },
-                                        set: { newValue in
-                                            // Remove commas for storage
-                                            viewModel.amount = newValue.replacingOccurrences(of: ",", with: "")
-                                        }
-                                    ))
-                                    .keyboardType(.decimalPad)
-                                    .font(.title2)
-                                    .multilineTextAlignment(.center)
-                                    .focused($isAmountFieldFocused)
-                                    Text(viewModel.fromCurrency.flag)
-                                        .font(.title2)
-                                    Text(viewModel.fromCurrency.code)
-                                        .font(.title2)
-                                        .bold()
-                                        .foregroundColor(.blue)
-                                }
-                                if !viewModel.amount.isEmpty {
-                                    Button(action: {
-                                        viewModel.amount = ""
-                                        viewModel.convertedAmount = 0
-                                        isAmountFieldFocused = true
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.gray)
-                                    }
-                                    .padding(.leading, 120)
-                                }
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        }
+                }
+                .sheet(isPresented: $showSettings) {
+                    SettingsView(viewModel: viewModel) {
+                        viewModel.updateDefaultsIfNeeded()
                     }
-                    .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds.width * 0.8 : nil)
-                    
-                    // Convert Button
+                }
+                .sheet(isPresented: $showingCurrencySelection) {
+                    CurrencySelectionView(viewModel: viewModel)
+                }
+                .onAppear {
+                    viewModel.updateDefaultsIfNeeded()
+                    cameraScanner.prepare()
+                }
+            }
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .preferredColorScheme(isDarkMode ? .dark : .light)
+        .animation(.easeInOut(duration: 0.2), value: selectedTab)
+    }
+
+    private var manualConverterContent: some View {
+        GeometryReader { geometry in
+            let viewHeight = manualLayoutHeight > 0 ? manualLayoutHeight : geometry.size.height
+            let helperHeight: CGFloat = 36
+            let topInset: CGFloat = 24
+            let sectionSpacing: CGFloat = 10
+            let availableHeight = viewHeight - topInset - helperHeight - sectionSpacing * 2
+            let totalStackHeight = availableHeight * ConverterBoxLayout.stackScale
+            let sectionHeight = max(0, (totalStackHeight - sectionSpacing * 2) / 3)
+            let canConvert = !viewModel.isLoading && !viewModel.amount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+            VStack(spacing: 0) {
+                Spacer()
+                    .frame(height: topInset)
+
+                Spacer(minLength: 0)
+
+                VStack(spacing: sectionSpacing) {
+                    manualAmountSection
+                        .frame(maxWidth: .infinity)
+                        .frame(height: sectionHeight)
+
+                    ConversionResultSection(viewModel: viewModel)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: sectionHeight)
+
                     Button(action: {
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         viewModel.convert()
@@ -171,334 +138,223 @@ struct ContentView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             }
                             Text("Convert")
-                                .font(.headline)
+                                .font(.title.bold())
                                 .foregroundColor(.white)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background((viewModel.isLoading || viewModel.amount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ? Color.gray : Color.blue)
-                        .cornerRadius(10)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .disabled(viewModel.isLoading || viewModel.amount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds.width * 0.8 : nil)
-                    
-                    // Error Message
-                    if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.subheadline)
-                            .padding(.horizontal)
-                    }
-                    
-                    // Results Section
-                    HStack {
-                        VStack(alignment: .center, spacing: 8) {
-                            if viewModel.convertedAmount > 0 {
-                                HStack(alignment: .firstTextBaseline) {
-                                    Spacer()
-                                    VStack(alignment: .center, spacing: 0) {
-                                        Text(formatNumber(viewModel.convertedAmount))
-                                            .font(.system(size: 50, weight: .bold))
-                                            .foregroundColor(.green)
-                                            .multilineTextAlignment(.center)
-                                        HStack(spacing: 4) {
-                                            Text(viewModel.toCurrency.flag)
-                                                .font(.title2)
-                                            Text(viewModel.toCurrency.code)
-                                                .font(.title2)
-                                                .bold()
-                                                .foregroundColor(.blue)
-                                        }
-                                        .multilineTextAlignment(.center)
-                                    }
-                                    Spacer()
-                                }
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                if let lastUpdate = viewModel.lastUpdateTime {
-                                    if let formatted = formatLastUpdate(lastUpdate) {
-                                        Text("Last updated: \(formatted)")
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                            .frame(maxWidth: .infinity, alignment: .center)
-                                    }
-                                }
-                            } else {
-                                Text("Convert to see results")
-                                    .font(.headline)
-                                    .foregroundColor(.gray)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                            }
-                        }
-                        .frame(height: 150)
-                        .padding(.horizontal)
-                        .padding(.vertical, 12)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(10)
-                        .overlay(
-                            Button(action: {
-                                showingHistory = true
-                            }) {
-                                Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .foregroundColor(.green)
-                                    .padding(8)
-                                    .background(Color(.systemGray6))
-                                    .clipShape(Circle())
-                                    .shadow(radius: 2)
-                            }
-                            .padding(.trailing, 8)
-                            .padding(.top, 8),
-                            alignment: .topTrailing
-                        )
-                        .frame(width: UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds.width * 0.8 : nil)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                    }
-                    
-                    // Bottom Menu
-                    HStack {
-                        Button(action: {
-                            showingDefaultSettings = true
-                        }) {
-                            VStack {
-                                Image(systemName: "gear")
-                                    .font(.title2)
-                                Text("Defaults")
-                                    .font(.system(size: 10))
-                            }
-                        }
-                        Spacer()
-                        Button(action: {
-                            showingHistory = true
-                        }) {
-                            VStack {
-                                Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .font(.title2)
-                                Text("History")
-                                    .font(.system(size: 10))
-                            }
-                        }
-                        Spacer()
-                        Button(action: {
-                            // Navigate to Home (main convert view)
-                        }) {
-                            VStack {
-                                Image(systemName: "house")
-                                    .font(.title2)
-                                    .foregroundColor(.green)
-                                Text("Home")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.green)
-                            }
-                        }
-                        Spacer()
-                        Button(action: {
-                            showingDisclaimer = true
-                        }) {
-                            VStack {
-                                Image(systemName: "exclamationmark.circle")
-                                    .font(.title2)
-                                Text("Info")
-                                    .font(.system(size: 10))
-                            }
-                        }
-                        Spacer()
-                        Button(action: {
-                            showingContactUs = true
-                        }) {
-                            VStack {
-                                Image(systemName: "envelope")
-                                    .font(.title2)
-                                Text("Contact Us")
-                                    .font(.system(size: 10))
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .frame(width: UIDevice.current.userInterfaceIdiom == .pad ? UIScreen.main.bounds.width * 0.8 : nil)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .disabled(!canConvert)
+                    .background(canConvert ? Color.blue : Color.gray)
+                    .cornerRadius(12)
+                    .converterBoxShadow()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: sectionHeight)
                 }
-                .padding()
-                .navigationBarItems(
-                    leading:
-                        Button(action: {
-                            withAnimation {
-                                showCustomMenu.toggle()
-                            }
-                        }) {
-                            Image(systemName: "line.3.horizontal")
-                                .foregroundColor(.green)
-                        }
-                )
-                .sheet(isPresented: $showingFromPicker) {
-                    CurrencyPickerView(selectedCurrency: $viewModel.fromCurrency)
-                }
-                .sheet(isPresented: $showingToPicker) {
-                    CurrencyPickerView(selectedCurrency: $viewModel.toCurrency)
-                }
-                .sheet(isPresented: $showingDefaultSettings) {
-                    DefaultSettingsView()
-                }
-                .sheet(isPresented: $showingDisclaimer) {
-                    DisclaimerView()
-                }
-                .sheet(isPresented: $showingHistory) {
-                    HistoryView(
-                        viewModel: HistoryViewModel(),
-                        base: viewModel.fromCurrency.code,
-                        target: viewModel.toCurrency.code
-                    )
-                }
-                .sheet(isPresented: $showingContactUs) {
-                    ContactUsView(isPresented: $showingContactUs)
-                }
-                .onAppear {
-                    viewModel.updateDefaultsIfNeeded()
-                }
-                .onChange(of: showingDefaultSettings) { newValue in
-                    if newValue == false {
-                        viewModel.updateDefaultsIfNeeded()
-                    }
-                }
-                
-                // Side Menu
-                if showCustomMenu {
-                    Color.black.opacity(0.2)
-                        .edgesIgnoringSafeArea(.all)
-                        .onTapGesture {
-                            showCustomMenu = false
-                        }
-                    
-                    HStack {
-                        VStack(alignment: .leading, spacing: 0) {
-                            HStack(spacing: 0) {
-                                Text("Curren")
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(.blue)
-                                Text("$ee")
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(.green)
-                            }
-                            .padding(.top, 150)
-                            .padding(.bottom, 16)
-                            .padding(.leading, 16)
-                            
-                            VStack(spacing: 0) {
-                                Button {
-                                    showCustomMenu = false
-                                    DispatchQueue.main.async {
-                                        showingDefaultSettings = true
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "gear")
-                                            .foregroundColor(.blue)
-                                        Text("Defaults")
-                                            .font(.headline)
-                                    }
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                
-                                Button {
-                                    showCustomMenu = false
-                                    DispatchQueue.main.async {
-                                        showingHistory = true
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "chart.line.uptrend.xyaxis")
-                                            .foregroundColor(.blue)
-                                        Text("History")
-                                            .font(.headline)
-                                    }
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                
-                                Button {
-                                    showCustomMenu = false
-                                    DispatchQueue.main.async {
-                                        showingDisclaimer = true
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "exclamationmark.circle")
-                                            .foregroundColor(.blue)
-                                        Text("Info")
-                                            .font(.headline)
-                                    }
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                
-                                HStack {
-                                    Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
-                                        .foregroundColor(isDarkMode ? .blue : .orange)
-                                    Text("Mode")
-                                        .font(.headline)
-                                    Spacer()
-                                    Toggle("", isOn: $isDarkMode)
-                                        .labelsHidden()
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                Button {
-                                    showCustomMenu = false
-                                    DispatchQueue.main.async {
-                                        showingContactUs = true
-                                    }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "envelope")
-                                            .foregroundColor(.blue)
-                                        Text("Contact Us")
-                                            .font(.headline)
-                                    }
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }
-                            .foregroundColor(.white)
-                            
-                            Spacer()
-                        }
-                        .frame(width: 240)
-                        .background(Color.black.opacity(0.9))
-                        .edgesIgnoringSafeArea(.vertical)
-                        
-                        Spacer()
-                    }
-                    .transition(.move(edge: .leading))
+                .padding(.horizontal, ConverterBoxLayout.horizontalPadding)
+
+                Spacer(minLength: 0)
+
+                RatesLastUpdatedLabel(lastUpdateTime: viewModel.lastUpdateTime)
+                    .padding(.top, 8)
+                    .frame(height: helperHeight)
+                    .padding(.horizontal, 32)
+            }
+            .frame(width: geometry.size.width, height: viewHeight)
+            .onChange(of: geometry.size.height) { _, height in
+                if manualLayoutHeight == 0 && height > 0 {
+                    manualLayoutHeight = height
                 }
             }
         }
-        .navigationViewStyle(StackNavigationViewStyle())
-        .preferredColorScheme(isDarkMode ? .dark : .light)
-        .animation(.easeInOut(duration: 0.3), value: showCustomMenu)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
-    
-    private func formatLastUpdate(_ raw: String) -> String? {
-        // Try to parse the date from the API string, e.g. "Wed, 03 Jun 2025 14:34:00 +0000"
-        let inputFormatter = DateFormatter()
-        inputFormatter.locale = Locale(identifier: "en_US_POSIX")
-        inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-        if let date = inputFormatter.date(from: raw) {
-            let outputFormatter = DateFormatter()
-            outputFormatter.locale = Locale.current
-            outputFormatter.dateFormat = "dd MMM, HH:mm"
-            return outputFormatter.string(from: date)
+
+    private var manualAmountSection: some View {
+        ZStack {
+            Color(.systemGray6)
+
+            DecimalPadAmountField(
+                text: $viewModel.amount,
+                requestFocus: $requestAmountFieldFocus,
+                placeholder: "0",
+                fixedWidth: amountFieldFixedWidth
+            )
+            .frame(width: amountFieldFixedWidth)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(Color.black.opacity(0.55))
+            .cornerRadius(12)
+
         }
-        return nil
+        .overlay(alignment: .topTrailing) {
+            Button(action: {
+                viewModel.amount = ""
+                viewModel.convertedAmount = 0
+                requestAmountFieldFocus = true
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.gray)
+            }
+            .opacity(viewModel.amount.isEmpty ? 0 : 1)
+            .disabled(viewModel.amount.isEmpty)
+            .padding(8)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .converterBoxShadow()
     }
-    
-    private func formatNumber(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+
+    private var amountFieldFixedWidth: CGFloat {
+        let font = UIFont.systemFont(ofSize: 48, weight: .bold)
+        return ceil(("000000" as NSString).size(withAttributes: [.font: font]).width)
+    }
+
+}
+
+private struct DecimalPadAmountField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var requestFocus: Bool
+    var placeholder: String
+    var fixedWidth: CGFloat
+
+    private static let maxFontSize: CGFloat = 48
+    private static let minFontSize: CGFloat = 20
+    private static let fieldHeight: CGFloat = 58
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> UITextField {
+        let field = UITextField()
+        field.keyboardType = .decimalPad
+        field.textAlignment = .center
+        field.font = .systemFont(ofSize: Self.maxFontSize, weight: .bold)
+        field.textColor = .systemGreen
+        field.borderStyle = .none
+        field.backgroundColor = .clear
+        field.adjustsFontSizeToFitWidth = true
+        field.minimumFontSize = Self.minFontSize
+        field.setContentHuggingPriority(.required, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.delegate = context.coordinator
+        field.addTarget(context.coordinator, action: #selector(Coordinator.textChanged), for: .editingChanged)
+        field.attributedPlaceholder = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: UIColor.systemGreen.withAlphaComponent(0.45),
+                .font: UIFont.systemFont(ofSize: Self.maxFontSize, weight: .bold)
+            ]
+        )
+
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+        let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let done = UIBarButtonItem(
+            title: "Done",
+            style: .done,
+            target: context.coordinator,
+            action: #selector(Coordinator.doneTapped)
+        )
+        toolbar.items = [flex, done]
+        field.inputAccessoryView = toolbar
+        context.coordinator.textField = field
+
+        return field
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.textField = uiView
+        let sanitized = text.replacingOccurrences(of: ",", with: "")
+        if uiView.text != sanitized {
+            uiView.text = sanitized
+        }
+        uiView.adjustsFontSizeToFitWidth = true
+        uiView.minimumFontSize = Self.minFontSize
+        if requestFocus {
+            DispatchQueue.main.async {
+                uiView.becomeFirstResponder()
+                requestFocus = false
+            }
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextField, context: Context) -> CGSize? {
+        CGSize(width: fixedWidth, height: Self.fieldHeight)
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: DecimalPadAmountField
+        weak var textField: UITextField?
+
+        init(parent: DecimalPadAmountField) {
+            self.parent = parent
+        }
+
+        @objc func textChanged(_ field: UITextField) {
+            let sanitized = AmountInputLimit.clamp((field.text ?? "").replacingOccurrences(of: ",", with: ""))
+            if field.text != sanitized {
+                field.text = sanitized
+            }
+            if parent.text != sanitized {
+                parent.text = sanitized
+            }
+        }
+
+        @objc func doneTapped() {
+            textField?.resignFirstResponder()
+        }
+
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            if string.isEmpty { return true }
+
+            let allowed = CharacterSet(charactersIn: "0123456789.")
+            guard string.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return false }
+
+            let current = textField.text ?? ""
+            guard let textRange = Range(range, in: current) else { return false }
+            let updated = current.replacingCharacters(in: textRange, with: string)
+            return AmountInputLimit.isValid(updated)
+        }
+    }
+}
+
+struct ConverterTabPicker: View {
+    @Binding var selection: ConverterTab
+    @AppStorage("isDarkMode") private var isDarkMode = true
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(ConverterTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selection = tab
+                    }
+                } label: {
+                    Text(tab.rawValue)
+                        .font(.subheadline)
+                        .fontWeight(selection == tab ? .semibold : .regular)
+                        .foregroundColor(isDarkMode ? .white : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                        .background {
+                            if selection == tab {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(isDarkMode ? Color(.systemGray4) : Color.white)
+                                    .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(Color(.systemGray5))
+        .clipShape(Capsule())
+        .frame(width: 220)
+        .padding(.top, 35)
+        .contentShape(Rectangle())
     }
 }
 
@@ -520,43 +376,67 @@ struct CurrencyPickerView: View {
     }
     
     var body: some View {
-        NavigationView {
-            List(filteredCurrencies) { currency in
-                Button(action: {
-                    selectedCurrency = currency
-                    dismiss()
-                }) {
-                    HStack {
-                        Text(currency.flag)
-                            .font(.title2)
-                        Text(currency.code)
-                            .font(.headline)
-                        Text(currency.name)
-                            .foregroundColor(.gray)
-                        Spacer()
-                        if currency.code == selectedCurrency.code {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
+        NavigationStack {
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray)
+                    TextField("Search Currency", text: $searchText)
+                        .focused($isSearchFocused)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
                         }
                     }
                 }
+                .padding(12)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+
+                List(filteredCurrencies) { currency in
+                    Button(action: {
+                        selectedCurrency = currency
+                        dismiss()
+                    }) {
+                        HStack {
+                            Text(currency.flag)
+                                .font(.title2)
+                            Text(currency.code)
+                                .font(.headline)
+                            Text(currency.name)
+                                .foregroundColor(.gray)
+                            Spacer()
+                            if currency.code == selectedCurrency.code {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
             }
-            .searchable(text: $searchText, prompt: "Search Currency")
-            .focused($isSearchFocused)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isSearchFocused = true
                 }
             }
-            .navigationTitle("Select Currency")
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    dismiss()
-                },
-                trailing: Button("Done") {
-                    dismiss()
-                }
-            )
         }
     }
 }

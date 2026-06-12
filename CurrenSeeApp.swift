@@ -11,7 +11,7 @@ import SwiftUI
 struct CurrenSeeApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
     }
 }

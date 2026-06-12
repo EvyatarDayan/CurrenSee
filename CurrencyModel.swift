@@ -203,6 +203,36 @@ struct Currency: Identifiable, Hashable {
     ]
 }
 
+struct LastConversion: Codable, Equatable {
+    let sourceAmount: Double
+    let convertedAmount: Double
+    let fromCurrencyCode: String
+    let toCurrencyCode: String
+
+    private static let storageKey = "lastConversion"
+
+    static func load() -> LastConversion? {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let conversion = try? JSONDecoder().decode(LastConversion.self, from: data) else {
+            return nil
+        }
+        return conversion
+    }
+
+    func save() {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        UserDefaults.standard.set(data, forKey: Self.storageKey)
+    }
+
+    func fromCurrency() -> Currency? {
+        Currency.allCurrencies.first { $0.code == fromCurrencyCode }
+    }
+
+    func toCurrency() -> Currency? {
+        Currency.allCurrencies.first { $0.code == toCurrencyCode }
+    }
+}
+
 @MainActor
 class CurrencyConverterViewModel: ObservableObject {
     @Published var fromCurrency: Currency
@@ -212,14 +242,24 @@ class CurrencyConverterViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var lastUpdateTime: String?
-    
+    @Published var lastConversion: LastConversion?
+    @Published private(set) var conversionTick = 0
+
     private var rates: [String: Double] = [:]
-    
+    private static let lastUpdateTimeKey = "lastUpdateTime"
+
     init() {
         let defaultFrom = UserDefaults.standard.string(forKey: "defaultFromCurrency") ?? "USD"
         let defaultTo = UserDefaults.standard.string(forKey: "defaultToCurrency") ?? "EUR"
         self.fromCurrency = Currency.allCurrencies.first { $0.code == defaultFrom } ?? Currency.allCurrencies[0]
         self.toCurrency = Currency.allCurrencies.first { $0.code == defaultTo } ?? Currency.allCurrencies[1]
+
+        if let saved = LastConversion.load() {
+            self.lastConversion = saved
+            self.amount = Self.formatAmountString(saved.sourceAmount)
+            self.convertedAmount = saved.convertedAmount
+        }
+        self.lastUpdateTime = UserDefaults.standard.string(forKey: Self.lastUpdateTimeKey)
     }
     
     func updateDefaultsIfNeeded() {
@@ -248,6 +288,7 @@ class CurrencyConverterViewModel: ObservableObject {
                let json = try? JSONSerialization.jsonObject(with: response) as? [String: Any],
                let time = json["time_last_update_utc"] as? String {
                 lastUpdateTime = time
+                UserDefaults.standard.set(time, forKey: Self.lastUpdateTimeKey)
             }
             
             // Perform conversion
@@ -262,11 +303,28 @@ class CurrencyConverterViewModel: ObservableObject {
             // Convert to USD first, then to target currency
             let amountInUSD = amount / fromRate
             convertedAmount = amountInUSD * toRate
-            
+
+            let conversion = LastConversion(
+                sourceAmount: amount,
+                convertedAmount: convertedAmount,
+                fromCurrencyCode: fromCurrency.code,
+                toCurrencyCode: toCurrency.code
+            )
+            conversion.save()
+            lastConversion = conversion
+            conversionTick += 1
+
         } catch {
             errorMessage = "Failed to fetch exchange rates: \(error.localizedDescription)"
         }
         
         isLoading = false
     }
-} 
+
+    private static func formatAmountString(_ value: Double) -> String {
+        if value.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", value)
+        }
+        return String(format: "%.2f", value)
+    }
+}
