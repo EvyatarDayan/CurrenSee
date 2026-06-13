@@ -7,6 +7,7 @@ enum ConverterBoxLayout {
 
 enum AmountInputLimit {
     static let maxDigits = 10
+    static let maxCameraDigits = 8
     static let maxDecimalPlaces = 2
 
     static func digitCount(in text: String) -> Int {
@@ -20,7 +21,7 @@ enum AmountInputLimit {
         return digitCount(in: text) <= maxDigits
     }
 
-    static func clamp(_ text: String) -> String {
+    static func clamp(_ text: String, digitLimit: Int = maxDigits) -> String {
         var digits = 0
         var result = ""
         var hasDecimal = false
@@ -38,12 +39,41 @@ enum AmountInputLimit {
                 if decimalPlaces >= maxDecimalPlaces { continue }
                 decimalPlaces += 1
             }
-            if digits >= maxDigits { continue }
+            if digits >= digitLimit { continue }
             digits += 1
             result.append(character)
         }
 
         return result
+    }
+
+    static func cameraDetectedAmountString(from value: Double) -> String? {
+        let clamped = clamp(rawAmountString(from: value), digitLimit: maxCameraDigits)
+        guard digitCount(in: clamped) <= maxCameraDigits else { return nil }
+        return clamped
+    }
+
+    static func cameraDetectedAmount(from value: Double) -> Double? {
+        guard let string = cameraDetectedAmountString(from: value) else { return nil }
+        return Double(string)
+    }
+
+    static func detectedAmountString(from value: Double) -> String? {
+        let clamped = clamp(rawAmountString(from: value))
+        guard digitCount(in: clamped) <= maxDigits else { return nil }
+        return clamped
+    }
+
+    static func detectedAmount(from value: Double) -> Double? {
+        guard let string = detectedAmountString(from: value) else { return nil }
+        return Double(string)
+    }
+
+    private static func rawAmountString(from value: Double) -> String {
+        if value.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", value)
+        }
+        return String(format: "%.2f", value)
     }
 }
 

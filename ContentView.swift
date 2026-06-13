@@ -10,14 +10,29 @@ import SwiftUI
 enum ConverterTab: String, CaseIterable {
     case manual = "Manual"
     case camera = "Camera"
+
+    static let defaultViewStorageKey = "defaultConverterView"
+
+    static func fromStoredDefault(_ value: String) -> ConverterTab {
+        value == "camera" ? .camera : .manual
+    }
+
+    var storedDefaultValue: String {
+        self == .camera ? "camera" : "manual"
+    }
 }
 
 struct ContentView: View {
     @StateObject private var viewModel = CurrencyConverterViewModel()
     @StateObject private var cameraScanner = CameraTextScanner()
-    @State private var selectedTab: ConverterTab = .manual
+    @State private var selectedTab: ConverterTab
     @State private var showingCurrencySelection = false
     @AppStorage("isDarkMode") private var isDarkMode = true
+
+    init() {
+        let storedDefault = UserDefaults.standard.string(forKey: ConverterTab.defaultViewStorageKey) ?? "manual"
+        _selectedTab = State(initialValue: ConverterTab.fromStoredDefault(storedDefault))
+    }
     
     var body: some View {
         NavigationView {
@@ -81,6 +96,9 @@ struct ContentView: View {
                 }
                 .onAppear {
                     cameraScanner.prepare()
+                    if selectedTab == .camera {
+                        cameraScanner.activate()
+                    }
                 }
             }
         }

@@ -5,19 +5,33 @@ import Vision
 struct CameraScanView: View {
     @ObservedObject var viewModel: CurrencyConverterViewModel
     @ObservedObject var scanner: CameraTextScanner
+    @State private var showClearButton = false
+    @State private var pendingCameraConversion = false
+    @State private var autoClearTask: Task<Void, Never>?
+
+    private let autoClearDelay: TimeInterval = 20
 
     private var canConvert: Bool {
-        scanner.detectedAmount != nil && !viewModel.isLoading
+        scanner.detectedAmount != nil && !viewModel.isLoading && !showClearButton
     }
 
     var body: some View {
         GeometryReader { geometry in
             let helperHeight: CGFloat = 36
-            let topInset: CGFloat = 24
+            let cameraTopExpansion: CGFloat = 24
+            let cameraBottomExpansion: CGFloat = 40
+            let minButtonHeight: CGFloat = 44
+            let topInset: CGFloat = max(0, 24 - cameraTopExpansion)
             let sectionSpacing: CGFloat = 10
-            let availableHeight = geometry.size.height - topInset - helperHeight - sectionSpacing * 2
+            let availableHeight = geometry.size.height - 24 - helperHeight - sectionSpacing
             let totalStackHeight = availableHeight * ConverterBoxLayout.stackScale
-            let sectionHeight = max(0, (totalStackHeight - sectionSpacing * 2) / 3)
+            let sectionHeight = max(0, (totalStackHeight - sectionSpacing) / 3)
+            let buttonHeight = max(minButtonHeight, sectionHeight - cameraBottomExpansion)
+            let bottomExpansionApplied = sectionHeight - buttonHeight
+            let cameraHeight = max(
+                0,
+                sectionHeight * 2 + sectionSpacing + cameraTopExpansion + bottomExpansionApplied
+            )
 
             VStack(spacing: 0) {
                 Spacer()
@@ -28,34 +42,32 @@ struct CameraScanView: View {
                 VStack(spacing: sectionSpacing) {
                     cameraSection
                         .frame(maxWidth: .infinity)
-                        .frame(height: sectionHeight)
-
-                    ConversionResultSection(viewModel: viewModel)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: sectionHeight)
+                        .frame(height: cameraHeight)
 
                     Button {
-                        guard let amount = scanner.detectedAmount else { return }
-                        viewModel.amount = formatScannedAmount(amount)
-                        viewModel.convert()
+                        if showClearButton {
+                            clearCameraResults()
+                        } else {
+                            convertDetectedAmount()
+                        }
                     } label: {
                         HStack {
-                            if viewModel.isLoading {
+                            if viewModel.isLoading && !showClearButton {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             }
-                            Text("Convert")
-                                .font(.title.bold())
+                            Text(showClearButton ? "Clear" : "Convert")
+                                .font(.title3.bold())
                                 .foregroundColor(.white)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .disabled(!canConvert)
-                    .background(canConvert ? Color.blue : Color.gray)
+                    .disabled(showClearButton ? false : !canConvert)
+                    .background(actionButtonColor)
                     .cornerRadius(12)
                     .converterBoxShadow()
                     .frame(maxWidth: .infinity)
-                    .frame(height: sectionHeight)
+                    .frame(height: buttonHeight)
                 }
                 .padding(.horizontal, ConverterBoxLayout.horizontalPadding)
 
@@ -67,57 +79,237 @@ struct CameraScanView: View {
                     .padding(.horizontal, 32)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .onChange(of: viewModel.conversionTick) { _, _ in
+                guard pendingCameraConversion else { return }
+                pendingCameraConversion = false
+                showClearButton = true
+                startAutoClearTimer()
+            }
+            .onChange(of: viewModel.errorMessage) { _, error in
+                guard error != nil, pendingCameraConversion else { return }
+                pendingCameraConversion = false
+            }
+            .onDisappear {
+                autoClearTask?.cancel()
+                autoClearTask = nil
+            }
         }
+    }
+
+    private var actionButtonColor: Color {
+        if showClearButton {
+            return .orange
+        }
+        return canConvert ? .green : .gray
+    }
+
+    private func convertDetectedAmount() {
+        guard let amount = scanner.detectedAmount else { return }
+        pendingCameraConversion = true
+        viewModel.amount = formatScannedAmount(amount)
+        viewModel.convert()
+    }
+
+    private func clearCameraResults() {
+        autoClearTask?.cancel()
+        autoClearTask = nil
+        showClearButton = false
+        pendingCameraConversion = false
+        viewModel.clearAmountAndResults()
+    }
+
+    private func startAutoClearTimer() {
+        autoClearTask?.cancel()
+        autoClearTask = Task {
+            try? await Task.sleep(for: .seconds(autoClearDelay))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                clearCameraResults()
+            }
+        }
+    }
+
+    private var displaySourceAmount: Double {
+        scanner.detectedAmount ?? 0
+    }
+
+    private var displayConvertedAmount: Double {
+        viewModel.lastConversion?.convertedAmount ?? 0
     }
 
     private var cameraSection: some View {
-        ZStack {
-            if scanner.permissionDenied {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray5))
-                    .overlay {
-                        VStack(spacing: 12) {
-                            Image(systemName: "camera.fill")
-                                .font(.largeTitle)
-                                .foregroundColor(.gray)
-                            Text("Camera access is required to scan prices.")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
+        GeometryReader { cameraGeometry in
+            let overlayHorizontalPadding: CGFloat = 12
+            let contentWidth = max(0, cameraGeometry.size.width - overlayHorizontalPadding * 2)
+
+            ZStack {
+                if scanner.permissionDenied {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray5))
+                        .overlay {
+                            VStack(spacing: 12) {
+                                Image(systemName: "camera.fill")
+                                    .font(.largeTitle)
+                                    .foregroundColor(.gray)
+                                Text("Camera access is required to scan prices.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                            }
                         }
-                    }
-            } else {
-                CameraPreviewView(scanner: scanner)
-            }
+                } else {
+                    CameraPreviewView(scanner: scanner)
+                }
 
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.green, lineWidth: 3)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.green, lineWidth: 3)
 
-            VStack {
-                Spacer()
-                Text(scanner.detectedPreview ?? "0")
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundColor(.green)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.55))
-                    .cornerRadius(12)
-                    .padding(.bottom, 16)
+                VStack {
+                    Spacer()
+                    CameraConversionBannerView(
+                        sourceAmount: displaySourceAmount,
+                        convertedAmount: displayConvertedAmount,
+                        fromCurrency: viewModel.fromCurrency,
+                        toCurrency: viewModel.toCurrency,
+                        contentWidth: contentWidth
+                    )
+                        .padding(.horizontal, overlayHorizontalPadding)
+                        .padding(.bottom, 16)
+                }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .converterBoxShadow()
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .converterBoxShadow()
     }
 
     private func formatScannedAmount(_ value: Double) -> String {
-        let formatted: String
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
-            formatted = String(format: "%.0f", value)
-        } else {
-            formatted = String(format: "%.2f", value)
+        AmountInputLimit.cameraDetectedAmountString(from: value) ?? "0"
+    }
+}
+
+private struct MaxAmountWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct CameraConversionBannerView: View {
+    let sourceAmount: Double
+    let convertedAmount: Double
+    let fromCurrency: Currency
+    let toCurrency: Currency
+    let contentWidth: CGFloat
+
+    @State private var amountColumnWidth: CGFloat = 0
+
+    private let bannerAmountFontSize: CGFloat = 40
+    private let bannerCodeFont: Font = .title3.weight(.semibold)
+
+    private var innerWidth: CGFloat {
+        max(0, contentWidth - 32)
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            bannerRow(
+                amount: AmountDisplayFormat.format(sourceAmount),
+                currency: fromCurrency,
+                amountFontSize: bannerAmountFontSize,
+                codeFont: bannerCodeFont,
+                color: .white
+            )
+
+            HStack(spacing: 4) {
+                HStack {
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.down")
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: max(amountColumnWidth, 1))
+
+                cameraCurrencyMeta(fromCurrency, codeFont: bannerCodeFont)
+                    .opacity(0)
+                    .accessibilityHidden(true)
+            }
+
+            bannerRow(
+                amount: AmountDisplayFormat.format(convertedAmount),
+                currency: toCurrency,
+                amountFontSize: bannerAmountFontSize,
+                codeFont: bannerCodeFont,
+                color: .green
+            )
         }
-        return AmountInputLimit.clamp(formatted)
+        .frame(maxWidth: contentWidth)
+        .frame(maxWidth: .infinity)
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.black.opacity(0.62))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onPreferenceChange(MaxAmountWidthKey.self) { amountColumnWidth = $0 }
+    }
+
+    private func bannerRow(
+        amount: String,
+        currency: Currency,
+        amountFontSize: CGFloat,
+        codeFont: Font,
+        color: Color
+    ) -> some View {
+        HStack(spacing: 4) {
+            CameraFittingAmountText(
+                text: amount,
+                fontSize: amountFontSize,
+                weight: .bold,
+                color: color
+            )
+            .background {
+                GeometryReader { geometry in
+                    Color.clear.preference(
+                        key: MaxAmountWidthKey.self,
+                        value: geometry.size.width
+                    )
+                }
+            }
+            .fixedSize(horizontal: true, vertical: false)
+
+            cameraCurrencyMeta(currency, codeFont: codeFont)
+        }
+        .frame(maxWidth: innerWidth, alignment: .center)
+    }
+
+    private func cameraCurrencyMeta(_ currency: Currency, codeFont: Font) -> some View {
+        HStack(spacing: 4) {
+            Text(currency.flag)
+                .fixedSize()
+            Text(currency.code)
+                .font(codeFont)
+                .foregroundStyle(.blue)
+                .fixedSize()
+        }
+    }
+}
+
+private struct CameraFittingAmountText: View {
+    let text: String
+    let fontSize: CGFloat
+    let weight: Font.Weight
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: fontSize, weight: weight))
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.35)
+            .allowsTightening(true)
     }
 }
 
@@ -260,14 +452,16 @@ final class CameraTextScanner: NSObject, ObservableObject {
     private func handleRecognizedText(_ strings: [String]) {
         if isScanPaused { return }
 
-        let candidates = strings.compactMap { Self.extractPrice(from: $0) }
+        let candidates = strings
+            .compactMap { Self.extractPrice(from: $0) }
+            .compactMap { AmountInputLimit.cameraDetectedAmount(from: $0) }
         guard let best = candidates.max() else {
             detectedPreview = nil
             detectedAmount = nil
             return
         }
 
-        detectedPreview = Self.formatPreview(best)
+        detectedPreview = AmountDisplayFormat.format(best)
         detectedAmount = best
         scanPausedUntil = Date().addingTimeInterval(rescanDelay)
     }
@@ -305,14 +499,6 @@ final class CameraTextScanner: NSObject, ObservableObject {
         }
 
         return Double(normalized)
-    }
-
-    nonisolated private static func formatPreview(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = value.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: value)) ?? String(value)
     }
 }
 

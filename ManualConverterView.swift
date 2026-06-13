@@ -140,8 +140,10 @@ private struct IntegratedNumericKeypad: View {
                 ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
                     HStack(spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { columnIndex, key in
-                            keypadButton(for: key)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            KeypadKeyButton(key: key, isDarkMode: isDarkMode) {
+                                handleKey(key)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                             if columnIndex < row.count - 1 {
                                 Rectangle()
@@ -161,31 +163,6 @@ private struct IntegratedNumericKeypad: View {
             }
         }
         .background(isDarkMode ? Color(.systemBackground) : Color(.systemBackground))
-    }
-
-    @ViewBuilder
-    private func keypadButton(for key: KeypadKey) -> some View {
-        Button(action: { handleKey(key) }) {
-            Group {
-                switch key {
-                case .digit(let digit):
-                    Text(digit)
-                        .font(.system(size: 34, weight: .regular))
-                        .foregroundStyle(isDarkMode ? .white : .primary)
-                case .clear:
-                    Text("C")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(.red)
-                case .backspace:
-                    Image(systemName: "delete.left")
-                        .font(.system(size: 28, weight: .regular))
-                        .foregroundStyle(.red)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     private func handleKey(_ key: KeypadKey) {
@@ -218,6 +195,72 @@ private struct IntegratedNumericKeypad: View {
         updated.append(digit)
         guard AmountInputLimit.digitCount(in: updated) <= AmountInputLimit.maxDigits else { return }
         amount = updated
+    }
+
+    private struct KeypadKeyButton: View {
+        let key: KeypadKey
+        let isDarkMode: Bool
+        let action: () -> Void
+
+        @State private var isHighlighted = false
+
+        private var highlightColor: Color {
+            isDarkMode ? Color.white.opacity(0.14) : Color.black.opacity(0.08)
+        }
+
+        var body: some View {
+            Button {
+                playTapAnimation()
+                action()
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(highlightColor.opacity(isHighlighted ? 1 : 0), lineWidth: 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(highlightColor.opacity(isHighlighted ? 1 : 0))
+                        )
+                        .padding(6)
+
+                    keyLabel
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .scaleEffect(isHighlighted ? 0.94 : 1)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+
+        @ViewBuilder
+        private var keyLabel: some View {
+            switch key {
+            case .digit(let digit):
+                Text(digit)
+                    .font(.system(size: 34, weight: .regular))
+                    .foregroundStyle(isDarkMode ? .white : .primary)
+            case .clear:
+                Text("C")
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(.red)
+            case .backspace:
+                Image(systemName: "delete.left")
+                    .font(.system(size: 28, weight: .regular))
+                    .foregroundStyle(.red)
+            }
+        }
+
+        private func playTapAnimation() {
+            withAnimation(.easeOut(duration: 0.08)) {
+                isHighlighted = true
+            }
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(100))
+                withAnimation(.easeOut(duration: 0.14)) {
+                    isHighlighted = false
+                }
+            }
+        }
     }
 }
 

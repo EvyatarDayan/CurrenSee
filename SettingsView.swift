@@ -26,6 +26,7 @@ struct SettingsView: View {
     @ObservedObject var viewModel: CurrencyConverterViewModel
 
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage(ConverterTab.defaultViewStorageKey) private var defaultConverterView = "manual"
     @State private var showingHistory = false
 
     private var cardBackground: Color {
@@ -40,12 +41,20 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
                         settingsSectionHeader("Preferences")
-                        settingsCompactCard(darkModeRow)
+                        settingsCompactCard {
+                            VStack(spacing: 0) {
+                                darkModeRow
+                                settingsDivider
+                                defaultViewRow
+                            }
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
                         settingsSectionHeader("Data")
-                        settingsCompactCard(historyRow)
+                        settingsCompactCard {
+                            historyRow
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
@@ -122,8 +131,9 @@ struct SettingsView: View {
             .padding(.leading, 4)
     }
 
-    private func settingsCompactCard<Content: View>(_ content: Content) -> some View {
-        content.settingsCompactCardStyle(background: cardBackground)
+    @ViewBuilder
+    private func settingsCompactCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content().settingsCompactCardStyle(background: cardBackground)
     }
 
     private var settingsDivider: some View {
@@ -144,6 +154,32 @@ struct SettingsView: View {
                 .labelsHidden()
                 .scaleEffect(0.72, anchor: .trailing)
         }
+    }
+
+    private var defaultViewRow: some View {
+        settingsRow(
+            icon: "rectangle.on.rectangle.angled",
+            iconColor: .green,
+            title: "Default View",
+            subtitle: defaultViewDisplayName,
+            compact: true
+        ) {
+            Toggle("", isOn: isCameraDefaultView)
+                .labelsHidden()
+                .scaleEffect(0.72, anchor: .trailing)
+                .tint(.green)
+        }
+    }
+
+    private var isCameraDefaultView: Binding<Bool> {
+        Binding(
+            get: { defaultConverterView == "camera" },
+            set: { defaultConverterView = $0 ? "camera" : "manual" }
+        )
+    }
+
+    private var defaultViewDisplayName: String {
+        defaultConverterView == "camera" ? "Camera" : "Manual"
     }
 
     private var historyRow: some View {

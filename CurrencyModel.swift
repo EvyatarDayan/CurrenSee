@@ -210,25 +210,6 @@ struct LastConversion: Codable, Equatable {
     let fromCurrencyCode: String
     let toCurrencyCode: String
 
-    private static let storageKey = "lastConversion"
-
-    static func load() -> LastConversion? {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let conversion = try? JSONDecoder().decode(LastConversion.self, from: data) else {
-            return nil
-        }
-        return conversion
-    }
-
-    func save() {
-        guard let data = try? JSONEncoder().encode(self) else { return }
-        UserDefaults.standard.set(data, forKey: Self.storageKey)
-    }
-
-    static func clearSaved() {
-        UserDefaults.standard.removeObject(forKey: storageKey)
-    }
-
     func fromCurrency() -> Currency? {
         Currency.allCurrencies.first { $0.code == fromCurrencyCode }
     }
@@ -260,11 +241,7 @@ class CurrencyConverterViewModel: ObservableObject {
         self.fromCurrency = Currency.allCurrencies.first { $0.code == fromCode } ?? Currency.allCurrencies[0]
         self.toCurrency = Currency.allCurrencies.first { $0.code == toCode } ?? Currency.allCurrencies[1]
 
-        if let saved = LastConversion.load() {
-            self.lastConversion = saved
-            self.amount = Self.formatAmountString(saved.sourceAmount)
-            self.convertedAmount = saved.convertedAmount
-        }
+        UserDefaults.standard.removeObject(forKey: "lastConversion")
         self.lastUpdateTime = UserDefaults.standard.string(forKey: Self.lastUpdateTimeKey)
         setupCurrencyPersistence()
         persistSelectedCurrencies()
@@ -301,7 +278,6 @@ class CurrencyConverterViewModel: ObservableObject {
                 if trimmed.isEmpty {
                     convertedAmount = 0
                     lastConversion = nil
-                    LastConversion.clearSaved()
                     errorMessage = nil
                     return
                 }
@@ -328,7 +304,6 @@ class CurrencyConverterViewModel: ObservableObject {
         amount = ""
         convertedAmount = 0
         lastConversion = nil
-        LastConversion.clearSaved()
     }
 
     func convert() {
@@ -372,7 +347,6 @@ class CurrencyConverterViewModel: ObservableObject {
                 fromCurrencyCode: fromCurrency.code,
                 toCurrencyCode: toCurrency.code
             )
-            conversion.save()
             lastConversion = conversion
             conversionTick += 1
 
@@ -381,12 +355,5 @@ class CurrencyConverterViewModel: ObservableObject {
         }
         
         isLoading = false
-    }
-
-    private static func formatAmountString(_ value: Double) -> String {
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(format: "%.0f", value)
-        }
-        return String(format: "%.2f", value)
     }
 }
