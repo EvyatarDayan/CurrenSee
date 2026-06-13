@@ -225,11 +225,16 @@ class CurrencyConverterViewModel: ObservableObject {
     @Published var toCurrency: Currency
     @Published var amount: String = ""
     @Published var convertedAmount: Double = 0
+    @Published var manualErrorMessage: String?
+    @Published var cameraConvertedAmount: Double = 0
+    @Published var cameraLastConversion: LastConversion?
+    @Published var cameraErrorMessage: String?
     @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
+    @Published var cameraIsLoading: Bool = false
     @Published var lastUpdateTime: String?
     @Published var lastConversion: LastConversion?
     @Published private(set) var conversionTick = 0
+    @Published private(set) var cameraConversionTick = 0
 
     private var rates: [String: Double] = [:]
     private var cancellables = Set<AnyCancellable>()
@@ -278,10 +283,10 @@ class CurrencyConverterViewModel: ObservableObject {
                 if trimmed.isEmpty {
                     convertedAmount = 0
                     lastConversion = nil
-                    errorMessage = nil
+                    manualErrorMessage = nil
                     return
                 }
-                convert()
+                convertManual()
             }
             .store(in: &cancellables)
     }
@@ -300,60 +305,106 @@ class CurrencyConverterViewModel: ObservableObject {
         )
     }
 
-    func clearAmountAndResults() {
+    func clearManualResults() {
         amount = ""
         convertedAmount = 0
         lastConversion = nil
+        manualErrorMessage = nil
     }
 
-    func convert() {
+    func clearCameraResults() {
+        cameraConvertedAmount = 0
+        cameraLastConversion = nil
+        cameraErrorMessage = nil
+    }
+
+    func convertManual() {
         Task {
-            await fetchRatesAndConvert()
+            await fetchRatesAndConvert(amountString: amount, destination: .manual)
         }
     }
-    
-    private func fetchRatesAndConvert() async {
-        isLoading = true
-        errorMessage = nil
-        
+
+    func convertCamera(amount amountString: String) {
+        Task {
+            await fetchRatesAndConvert(amountString: amountString, destination: .camera)
+        }
+    }
+
+    private enum ConversionDestination {
+        case manual
+        case camera
+    }
+
+    private func fetchRatesAndConvert(amountString: String, destination: ConversionDestination) async {
+        switch destination {
+        case .manual:
+            isLoading = true
+            manualErrorMessage = nil
+        case .camera:
+            cameraIsLoading = true
+            cameraErrorMessage = nil
+        }
+
+        defer {
+            switch destination {
+            case .manual:
+                isLoading = false
+            case .camera:
+                cameraIsLoading = false
+            }
+        }
+
         do {
-            // Fetch latest rates
             rates = try await CurrencyService.shared.getRates()
-            
-            // Get the last update time
+
             if let response = try? await URLSession.shared.data(from: URL(string: "https://open.er-api.com/v6/latest/USD")!).0,
                let json = try? JSONSerialization.jsonObject(with: response) as? [String: Any],
                let time = json["time_last_update_utc"] as? String {
                 lastUpdateTime = time
                 UserDefaults.standard.set(time, forKey: Self.lastUpdateTimeKey)
             }
-            
-            // Perform conversion
-            guard let amount = Double(amount),
+
+            guard let amount = Double(amountString),
                   let fromRate = rates[fromCurrency.code],
                   let toRate = rates[toCurrency.code] else {
-                errorMessage = "Invalid amount or currency rate not available"
-                isLoading = false
+                let message = "Invalid amount or currency rate not available"
+                switch destination {
+                case .manual:
+                    manualErrorMessage = message
+                case .camera:
+                    cameraErrorMessage = message
+                }
                 return
             }
-            
-            // Convert to USD first, then to target currency
+
             let amountInUSD = amount / fromRate
-            convertedAmount = amountInUSD * toRate
+            let converted = amountInUSD * toRate
 
             let conversion = LastConversion(
                 sourceAmount: amount,
-                convertedAmount: convertedAmount,
+                convertedAmount: converted,
                 fromCurrencyCode: fromCurrency.code,
                 toCurrencyCode: toCurrency.code
             )
-            lastConversion = conversion
-            conversionTick += 1
 
+            switch destination {
+            case .manual:
+                convertedAmount = converted
+                lastConversion = conversion
+                conversionTick += 1
+            case .camera:
+                cameraConvertedAmount = converted
+                cameraLastConversion = conversion
+                cameraConversionTick += 1
+            }
         } catch {
-            errorMessage = "Failed to fetch exchange rates: \(error.localizedDescription)"
+            let message = "Failed to fetch exchange rates: \(error.localizedDescription)"
+            switch destination {
+            case .manual:
+                manualErrorMessage = message
+            case .camera:
+                cameraErrorMessage = message
+            }
         }
-        
-        isLoading = false
     }
 }

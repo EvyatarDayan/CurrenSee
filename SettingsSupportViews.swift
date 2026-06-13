@@ -81,7 +81,7 @@ struct HelpSupportView: View {
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 50)
-                                    .background(allFieldsFilled ? Color.green : Color.gray)
+                                    .background(allFieldsFilled ? Color.appRed : Color.gray)
                                     .cornerRadius(12)
                             }
                             .disabled(!allFieldsFilled)
@@ -100,7 +100,7 @@ struct HelpSupportView: View {
                                 Text("Whether you have questions,")
                                     .font(.body)
 
-                                Text("feedback, or need help with CurrenSee,")
+                                Text("feedback, or need help with Curren$ee,")
                                     .font(.body)
 
                                 Text("feel free to reach out.")
@@ -139,7 +139,7 @@ struct HelpSupportView: View {
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 50)
-                                    .background(Color.green)
+                                    .background(Color.appRed)
                                     .cornerRadius(12)
                                     .padding(.horizontal, 32)
                             }
@@ -174,7 +174,7 @@ struct HelpSupportView: View {
         .sheet(isPresented: $showMailSheet) {
             MailView(
                 recipients: ["abashelariprod@gmail.com"],
-                subject: subject.isEmpty ? "CurrenSee Support Request" : subject,
+                subject: subject.isEmpty ? "Curren$ee Support Request" : subject,
                 body: mailBody(),
                 result: $mailResult,
                 didFinish: $mailDidFinish
@@ -265,13 +265,13 @@ struct TermsPrivacyView: View {
 
     Last Updated: June 11, 2026
 
-    Welcome to CurrenSee. These Terms of Use ("Terms") govern your access to and use of the CurrenSee mobile application ("App"). By using the App, you agree to be bound by these Terms.
+    Welcome to Curren$ee. These Terms of Use ("Terms") govern your access to and use of the Curren$ee mobile application ("App"). By using the App, you agree to be bound by these Terms.
 
     1. ACCEPTANCE OF TERMS
-    By downloading, installing, or using CurrenSee, you acknowledge that you have read, understood, and agree to be bound by these Terms and our Privacy Policy.
+    By downloading, installing, or using Curren$ee, you acknowledge that you have read, understood, and agree to be bound by these Terms and our Privacy Policy.
 
     2. DESCRIPTION OF SERVICE
-    CurrenSee is a currency converter app designed to help users convert amounts between currencies. The App allows users to:
+    Curren$ee is a currency converter app designed to help users convert amounts between currencies. The App allows users to:
     - Convert amounts manually between supported currencies
     - Scan prices with the camera to detect amounts
     - View exchange rate history for selected currency pairs
@@ -288,10 +288,10 @@ struct TermsPrivacyView: View {
     - Use automated systems to abuse or overload the App
 
     5. INTELLECTUAL PROPERTY
-    The App and its content, including but not limited to text, graphics, logos, and software, are the property of CurrenSee and are protected by copyright and other intellectual property laws.
+    The App and its content, including but not limited to text, graphics, logos, and software, are the property of Curren$ee and are protected by copyright and other intellectual property laws.
 
     6. LIMITATION OF LIABILITY
-    CurrenSee is provided "as is" without warranties of any kind. We do not guarantee that the App will be error-free or uninterrupted. In no event shall CurrenSee be liable for any indirect, incidental, or consequential damages.
+    Curren$ee is provided "as is" without warranties of any kind. We do not guarantee that the App will be error-free or uninterrupted. In no event shall Curren$ee be liable for any indirect, incidental, or consequential damages.
 
     7. MODIFICATIONS TO TERMS
     We reserve the right to modify these Terms at any time. Your continued use of the App after any changes constitutes acceptance of the modified Terms.
@@ -305,28 +305,28 @@ struct TermsPrivacyView: View {
 
     Last Updated: June 11, 2026
 
-    At CurrenSee, we are committed to protecting your privacy. This Privacy Policy explains how we handle your information when you use our mobile application.
+    At Curren$ee, we are committed to protecting your privacy. This Privacy Policy explains how we handle your information when you use our mobile application.
 
     1. LOCAL APP USAGE
-    CurrenSee stores preferences such as dark mode, selected currencies, and your last conversion locally on your device.
+    Curren$ee stores preferences such as dark mode, selected currencies, and your last conversion locally on your device.
 
     2. CAMERA FEATURES
-    CurrenSee can request camera access to scan prices and detect amounts using on-device processing. Camera images are used only for this feature and are not stored by the App.
+    Curren$ee can request camera access to scan prices and detect amounts using on-device processing. Camera images are used only for this feature and are not stored by the App.
 
     3. NETWORK REQUESTS
-    CurrenSee fetches exchange rates and historical rate data from third-party APIs when you convert currencies or view rate history. These requests include currency codes required to retrieve rates.
+    Curren$ee fetches exchange rates and historical rate data from third-party APIs when you convert currencies or view rate history. These requests include currency codes required to retrieve rates.
 
     4. DATA STORAGE
-    App preferences and your last conversion are stored locally on your device. CurrenSee does not require a user account.
+    App preferences and your last conversion are stored locally on your device. Curren$ee does not require a user account.
 
     5. DATA SHARING
-    CurrenSee does not sell your personal data. Exchange rate requests may be processed by third-party providers and are subject to those providers' terms and privacy policies.
+    Curren$ee does not sell your personal data. Exchange rate requests may be processed by third-party providers and are subject to those providers' terms and privacy policies.
 
     6. DATA SECURITY
     Your data is protected by your device's built-in security features. We use iOS-provided storage and permission systems.
 
     7. CHILDREN'S PRIVACY
-    CurrenSee is a utility app suitable for broad audiences. Since CurrenSee does not require account creation, personal data collection is limited.
+    Curren$ee is a utility app suitable for broad audiences. Since Curren$ee does not require account creation, personal data collection is limited.
 
     8. CHANGES TO THIS POLICY
     We may update this Privacy Policy from time to time. Changes will be reflected in this section.
@@ -341,16 +341,16 @@ struct TermsPrivacyView: View {
     Last Updated: June 11, 2026
 
     EXCHANGE RATE NOTICE
-    The exchange rates displayed in CurrenSee are based on publicly available sources and are intended for general information only. They may not reflect real-time or market-accurate rates. We do not guarantee the accuracy, completeness, or timeliness of the information. Use at your own discretion.
+    The exchange rates displayed in Curren$ee are based on publicly available sources and are intended for general information only. They may not reflect real-time or market-accurate rates. We do not guarantee the accuracy, completeness, or timeliness of the information. Use at your own discretion.
 
     1. NO WARRANTY
-    CurrenSee is provided "as is" and "as available" without warranties, express or implied. We do not guarantee that the App will be error-free, uninterrupted, or free from defects.
+    Curren$ee is provided "as is" and "as available" without warranties, express or implied. We do not guarantee that the App will be error-free, uninterrupted, or free from defects.
 
     2. ACCURACY OF RATES
     While we strive to provide useful conversion results, we cannot guarantee absolute accuracy of exchange rates, historical data, or scanned amounts in every situation.
 
     3. LIMITATION OF LIABILITY
-    To the fullest extent permitted by law, CurrenSee shall not be liable for indirect, incidental, special, consequential, or punitive damages, including financial loss arising from use of the App.
+    To the fullest extent permitted by law, Curren$ee shall not be liable for indirect, incidental, special, consequential, or punitive damages, including financial loss arising from use of the App.
 
     4. USER RESPONSIBILITY
     Users are responsible for:
@@ -359,16 +359,16 @@ struct TermsPrivacyView: View {
     - Maintaining security and access control of their own device
 
     5. THIRD-PARTY SERVICES
-    CurrenSee uses third-party services to provide exchange rates and historical data. These services are governed by their own terms and privacy policies.
+    Curren$ee uses third-party services to provide exchange rates and historical data. These services are governed by their own terms and privacy policies.
 
     6. CHANGES TO THE APP
-    We reserve the right to modify, suspend, or discontinue CurrenSee features at any time without prior notice.
+    We reserve the right to modify, suspend, or discontinue Curren$ee features at any time without prior notice.
 
     7. NO PROFESSIONAL ADVICE
-    CurrenSee is intended for informational purposes only and does not constitute financial, investment, tax, or legal advice.
+    Curren$ee is intended for informational purposes only and does not constitute financial, investment, tax, or legal advice.
 
     8. ACCEPTANCE
-    By using CurrenSee, you acknowledge that you have read, understood, and agree to this Disclaimer.
+    By using Curren$ee, you acknowledge that you have read, understood, and agree to this Disclaimer.
     """
 }
 
@@ -381,11 +381,11 @@ struct AboutCurrenSeeView: View {
         ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("About CurrenSee")
+                        Text("About Curren$ee")
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("CurrenSee is a currency converter app that helps you convert amounts quickly between currencies. Enter amounts manually or scan prices with your camera, view results instantly, and explore exchange rate history for your selected currency pair.")
+                        Text("Curren$ee is a currency converter app that helps you convert amounts quickly between currencies. Enter amounts manually or scan prices with your camera, view results instantly, and explore exchange rate history for your selected currency pair.")
                             .font(.body)
                             .multilineTextAlignment(.leading)
 

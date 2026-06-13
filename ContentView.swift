@@ -61,7 +61,7 @@ struct ContentView: View {
                             SettingsView(viewModel: viewModel)
                         } label: {
                             Image(systemName: "gearshape.circle")
-                                .foregroundColor(.green)
+                                .foregroundColor(.appRed)
                         }
                     }
                     ToolbarItem(placement: .principal) {
@@ -87,7 +87,7 @@ struct ContentView: View {
                             showingCurrencySelection = true
                         }) {
                             Image(systemName: "dollarsign.circle")
-                                .foregroundColor(.green)
+                                .foregroundColor(.appRed)
                         }
                     }
                 }
@@ -210,7 +210,7 @@ struct CurrencyPickerView: View {
                             Spacer()
                             if currency.code == selectedCurrency.code {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.appRed)
                             }
                         }
                     }

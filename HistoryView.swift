@@ -40,7 +40,7 @@ struct HistoryView: View {
                             .foregroundColor(.blue)
                         Image(systemName: "arrow.right")
                             .font(.title2)
-                            .foregroundColor(.green)
+                            .foregroundColor(.appRed)
                         Text(converterViewModel.toCurrency.flag)
                             .font(.title2)
                         Text(target)

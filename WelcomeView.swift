@@ -15,12 +15,12 @@ struct WelcomeView: View {
                 logoView
                     .padding(.bottom, 32)
 
-                Text("Welcome to CurrenSee")
+                Text("Welcome to Curren$ee")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.appRed)
                     .padding(.bottom, 20)
 
-                Text("Your go-to companion for fast currency conversions. Compare live exchange rates, scan prices with your camera, and review history — all in one place.")
+                Text("Your go-to companion for fast currency conversions. Compare live exchange rates, scan prices with your camera, and review history, all in one place.")
                     .font(.subheadline)
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
@@ -36,7 +36,7 @@ struct WelcomeView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Color.blue)
+                        .background(Color.appRed)
                         .clipShape(Capsule())
                 }
                 .padding(.horizontal, 32)
@@ -50,10 +50,10 @@ struct WelcomeView: View {
         HStack(spacing: 0) {
             Text("Curren")
                 .font(.system(size: 52, weight: .bold))
-                .foregroundColor(.blue)
+                .foregroundColor(.appRed)
             Text("$ee")
                 .font(.system(size: 52, weight: .bold))
-                .foregroundColor(.green)
+                .foregroundColor(.appRed)
         }
     }
 }

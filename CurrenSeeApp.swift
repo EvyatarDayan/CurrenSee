@@ -12,6 +12,7 @@ struct CurrenSeeApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .tint(.appRed)
         }
     }
 }

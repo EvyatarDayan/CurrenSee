@@ -35,24 +35,25 @@ struct ManualConverterView: View {
                     isInput: true
                 )
 
-                currencyAmountRow(
-                    currency: viewModel.toCurrency,
-                    amount: displayConverted,
-                    isInput: false
-                )
+                VStack(spacing: 6) {
+                    currencyAmountRow(
+                        currency: viewModel.toCurrency,
+                        amount: displayConverted,
+                        isInput: false
+                    )
+
+                    RatesLastUpdatedLabel(lastUpdateTime: viewModel.lastUpdateTime)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
             .animation(nil, value: viewModel.amount)
             .animation(nil, value: viewModel.convertedAmount)
 
             Spacer(minLength: 0)
-
-            RatesLastUpdatedLabel(lastUpdateTime: viewModel.lastUpdateTime)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 8)
         }
         .padding(.horizontal, 20)
         .overlay(alignment: .bottom) {
-            if let error = viewModel.errorMessage {
+            if let error = viewModel.manualErrorMessage {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -81,7 +82,7 @@ struct ManualConverterView: View {
 
                 StableAmountText(
                     text: amount,
-                    color: isInput ? (isDarkMode ? .white : .primary) : .green
+                    color: isInput ? (isDarkMode ? .white : .primary) : .appRed
                 )
             }
             .frame(height: 52)

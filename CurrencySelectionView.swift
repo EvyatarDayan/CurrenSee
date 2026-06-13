@@ -38,7 +38,7 @@ struct CurrencySelectionView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.blue)
+                    .background(Color.appRed)
                     .clipShape(Capsule())
             }
             .padding(.bottom, 8)
@@ -78,7 +78,7 @@ struct CurrencySelectionView: View {
         }) {
             Image(systemName: "arrow.up.arrow.down")
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundColor(.green)
+                .foregroundColor(.appRed)
                 .frame(width: 52, height: 52)
                 .background(Color(.systemBackground))
                 .clipShape(Circle())

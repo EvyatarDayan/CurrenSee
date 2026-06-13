@@ -147,7 +147,7 @@ struct DefaultCurrencyPickerView: View {
                         Spacer()
                         if currency.code == selectedCurrency.code {
                             Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.appRed)
                         }
                     }
                 }

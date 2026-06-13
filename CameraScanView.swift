@@ -12,7 +12,7 @@ struct CameraScanView: View {
     private let autoClearDelay: TimeInterval = 20
 
     private var canConvert: Bool {
-        scanner.detectedAmount != nil && !viewModel.isLoading && !showClearButton
+        scanner.detectedAmount != nil && !viewModel.cameraIsLoading && !showClearButton
     }
 
     var body: some View {
@@ -52,7 +52,7 @@ struct CameraScanView: View {
                         }
                     } label: {
                         HStack {
-                            if viewModel.isLoading && !showClearButton {
+                            if viewModel.cameraIsLoading && !showClearButton {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             }
@@ -79,13 +79,13 @@ struct CameraScanView: View {
                     .padding(.horizontal, 32)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
-            .onChange(of: viewModel.conversionTick) { _, _ in
+            .onChange(of: viewModel.cameraConversionTick) { _, _ in
                 guard pendingCameraConversion else { return }
                 pendingCameraConversion = false
                 showClearButton = true
                 startAutoClearTimer()
             }
-            .onChange(of: viewModel.errorMessage) { _, error in
+            .onChange(of: viewModel.cameraErrorMessage) { _, error in
                 guard error != nil, pendingCameraConversion else { return }
                 pendingCameraConversion = false
             }
@@ -106,8 +106,7 @@ struct CameraScanView: View {
     private func convertDetectedAmount() {
         guard let amount = scanner.detectedAmount else { return }
         pendingCameraConversion = true
-        viewModel.amount = formatScannedAmount(amount)
-        viewModel.convert()
+        viewModel.convertCamera(amount: formatScannedAmount(amount))
     }
 
     private func clearCameraResults() {
@@ -115,7 +114,7 @@ struct CameraScanView: View {
         autoClearTask = nil
         showClearButton = false
         pendingCameraConversion = false
-        viewModel.clearAmountAndResults()
+        viewModel.clearCameraResults()
     }
 
     private func startAutoClearTimer() {
@@ -134,7 +133,7 @@ struct CameraScanView: View {
     }
 
     private var displayConvertedAmount: Double {
-        viewModel.lastConversion?.convertedAmount ?? 0
+        viewModel.cameraLastConversion?.convertedAmount ?? 0
     }
 
     private var cameraSection: some View {
@@ -163,7 +162,7 @@ struct CameraScanView: View {
                 }
 
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.green, lineWidth: 3)
+                    .stroke(Color.appRed, lineWidth: 3)
 
                 VStack {
                     Spacer()
@@ -226,7 +225,7 @@ private struct CameraConversionBannerView: View {
                 HStack {
                     Spacer(minLength: 0)
                     Image(systemName: "arrow.down")
-                        .font(.caption2)
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.green)
                     Spacer(minLength: 0)
                 }
@@ -250,7 +249,7 @@ private struct CameraConversionBannerView: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color.black.opacity(0.62))
+        .background(Color.black.opacity(0.42))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onPreferenceChange(MaxAmountWidthKey.self) { amountColumnWidth = $0 }
     }

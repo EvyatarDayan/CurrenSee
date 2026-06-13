@@ -187,13 +187,13 @@ struct ConversionResultSection: View {
 
                     Image(systemName: "arrow.down")
                         .font(.caption)
-                        .foregroundColor(.green)
+                        .foregroundColor(.appRed)
 
                     HStack(spacing: 4) {
                         FittingResultAmountText(
                             text: formatNumber(display.convertedAmount),
                             style: .converted,
-                            color: .green
+                            color: .appRed
                         )
                         Text(toCurrency.flag)
                             .fixedSize()
@@ -210,7 +210,7 @@ struct ConversionResultSection: View {
                 Spacer(minLength: 0)
             }
 
-            if let error = viewModel.errorMessage {
+            if let error = viewModel.manualErrorMessage {
                 VStack {
                     Text(error)
                         .font(.caption)

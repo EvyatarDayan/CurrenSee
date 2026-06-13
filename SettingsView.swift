@@ -73,7 +73,7 @@ struct SettingsView: View {
                             settingsNavigationRow(
                                 destination: TermsPrivacyView(),
                                 icon: "lock.fill",
-                                iconColor: .green,
+                                iconColor: .appRed,
                                 title: "Terms and privacy",
                                 subtitle: "View terms and privacy policy"
                             )
@@ -103,7 +103,7 @@ struct SettingsView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Done") { dismiss() }
-                    .foregroundColor(.blue)
+                    .foregroundColor(.appRed)
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
@@ -116,7 +116,7 @@ struct SettingsView: View {
         Text("Settings")
             .font(.title2)
             .fontWeight(.semibold)
-            .foregroundColor(.blue)
+            .foregroundColor(.appRed)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.horizontal)
             .padding(.top, 15)
@@ -159,7 +159,7 @@ struct SettingsView: View {
     private var defaultViewRow: some View {
         settingsRow(
             icon: "rectangle.on.rectangle.angled",
-            iconColor: .green,
+            iconColor: .appRed,
             title: "Default View",
             subtitle: defaultViewDisplayName,
             compact: true
@@ -167,7 +167,7 @@ struct SettingsView: View {
             Toggle("", isOn: isCameraDefaultView)
                 .labelsHidden()
                 .scaleEffect(0.72, anchor: .trailing)
-                .tint(.green)
+                .tint(.appRed)
         }
     }
 
@@ -188,7 +188,7 @@ struct SettingsView: View {
         } label: {
             settingsRow(
                 icon: "chart.line.uptrend.xyaxis",
-                iconColor: .green,
+                iconColor: .appRed,
                 title: "Exchange Rate History",
                 subtitle: "View historical rates",
                 compact: true
