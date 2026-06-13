@@ -3,11 +3,13 @@ import Charts
 
 struct HistoryView: View {
     @Environment(\.dismiss) var dismiss
-    @ObservedObject var viewModel: HistoryViewModel
-    let base: String
-    let target: String
+    @ObservedObject var converterViewModel: CurrencyConverterViewModel
+    @StateObject private var viewModel = HistoryViewModel()
 
     @State private var range: RangeType = .fiveYears
+
+    private var base: String { converterViewModel.fromCurrency.code }
+    private var target: String { converterViewModel.toCurrency.code }
 
     enum RangeType: String, CaseIterable {
         case week = "1w"
@@ -30,35 +32,21 @@ struct HistoryView: View {
             VStack {
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
-                        if let baseCurrency = Currency.allCurrencies.first(where: { $0.code == base }) {
-                            Text(baseCurrency.flag)
-                                .font(.title2)
-                            Text(baseCurrency.code)
-                                .font(.title2)
-                                .bold()
-                                .foregroundColor(.blue)
-                        } else {
-                            Text(base)
-                                .font(.title2)
-                                .bold()
-                                .foregroundColor(.blue)
-                        }
+                        Text(converterViewModel.fromCurrency.flag)
+                            .font(.title2)
+                        Text(base)
+                            .font(.title2)
+                            .bold()
+                            .foregroundColor(.blue)
                         Image(systemName: "arrow.right")
                             .font(.title2)
                             .foregroundColor(.green)
-                        if let targetCurrency = Currency.allCurrencies.first(where: { $0.code == target }) {
-                            Text(targetCurrency.flag)
-                                .font(.title2)
-                            Text(targetCurrency.code)
-                                .font(.title2)
-                                .bold()
-                                .foregroundColor(.blue)
-                        } else {
-                            Text(target)
-                                .font(.title2)
-                                .bold()
-                                .foregroundColor(.blue)
-                        }
+                        Text(converterViewModel.toCurrency.flag)
+                            .font(.title2)
+                        Text(target)
+                            .font(.title2)
+                            .bold()
+                            .foregroundColor(.blue)
                     }
                 }
                 .padding(.top, 20)
@@ -119,7 +107,9 @@ struct HistoryView: View {
             .navigationTitle("History")
             .navigationBarItems(trailing: Button("Done") { dismiss() })
             .onAppear { load() }
-            .onChange(of: range) { _ in load() }
+            .onChange(of: range) { _, _ in load() }
+            .onChange(of: base) { _, _ in load() }
+            .onChange(of: target) { _, _ in load() }
         }
     }
 

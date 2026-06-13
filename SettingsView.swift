@@ -10,8 +10,9 @@ private enum SettingsStyle {
 }
 
 private extension View {
-    func settingsCardStyle(background: Color) -> some View {
-        padding(16)
+    func settingsCompactCardStyle(background: Color) -> some View {
+        padding(.horizontal, 12)
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(background)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -23,73 +24,82 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: CurrencyConverterViewModel
-    var onDefaultsDismissed: () -> Void = {}
 
     @AppStorage("isDarkMode") private var isDarkMode = true
-    @State private var showingDefaultSettings = false
     @State private var showingHistory = false
-    @State private var showingDisclaimer = false
-    @State private var showingContactUs = false
 
     private var cardBackground: Color {
         SettingsStyle.cardBackground(colorScheme: colorScheme)
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                pageHeader
+        VStack(spacing: 0) {
+            pageHeader
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
-                            settingsSectionHeader("Preferences")
-                            settingsCard(darkModeRow)
-                            settingsCard(defaultCurrenciesRow)
-                        }
-
-                        VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
-                            settingsSectionHeader("Data")
-                            settingsCard(historyRow)
-                        }
-
-                        VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
-                            settingsSectionHeader("Support")
-                            settingsCard(infoRow)
-                            settingsCard(contactUsRow)
-                        }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
+                        settingsSectionHeader("Preferences")
+                        settingsCompactCard(darkModeRow)
                     }
-                    .padding(.horizontal, SettingsStyle.horizontalPadding)
-                    .padding(.top, 8)
-                    .padding(.bottom, 24)
+
+                    VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
+                        settingsSectionHeader("Data")
+                        settingsCompactCard(historyRow)
+                    }
+
+                    VStack(alignment: .leading, spacing: SettingsStyle.rowSpacing) {
+                        settingsSectionHeader("Support")
+                        VStack(spacing: 0) {
+                            settingsNavigationRow(
+                                destination: HelpSupportView(),
+                                icon: "questionmark.circle.fill",
+                                iconColor: .blue,
+                                title: "Help and support",
+                                subtitle: "Get help and contact support"
+                            )
+
+                            settingsDivider
+
+                            settingsNavigationRow(
+                                destination: TermsPrivacyView(),
+                                icon: "lock.fill",
+                                iconColor: .green,
+                                title: "Terms and privacy",
+                                subtitle: "View terms and privacy policy"
+                            )
+
+                            settingsDivider
+
+                            settingsNavigationRow(
+                                destination: AboutCurrenSeeView(),
+                                icon: "info.circle.fill",
+                                iconColor: .orange,
+                                title: "About",
+                                subtitle: "App version and information"
+                            )
+                        }
+                        .background(cardBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
+                    }
                 }
-                .scrollContentBackground(.hidden)
+                .padding(.horizontal, SettingsStyle.horizontalPadding)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .foregroundColor(.blue)
-                }
+            .scrollContentBackground(.hidden)
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") { dismiss() }
+                    .foregroundColor(.blue)
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
-        .sheet(isPresented: $showingDefaultSettings) {
-            DefaultSettingsView()
-                .onDisappear { onDefaultsDismissed() }
-        }
         .sheet(isPresented: $showingHistory) {
-            HistoryView(
-                viewModel: HistoryViewModel(),
-                base: viewModel.fromCurrency.code,
-                target: viewModel.toCurrency.code
-            )
-        }
-        .sheet(isPresented: $showingDisclaimer) {
-            DisclaimerView()
-        }
-        .sheet(isPresented: $showingContactUs) {
-            ContactUsView(isPresented: $showingContactUs)
+            HistoryView(converterViewModel: viewModel)
         }
     }
 
@@ -112,8 +122,14 @@ struct SettingsView: View {
             .padding(.leading, 4)
     }
 
-    private func settingsCard<Content: View>(_ content: Content) -> some View {
-        content.settingsCardStyle(background: cardBackground)
+    private func settingsCompactCard<Content: View>(_ content: Content) -> some View {
+        content.settingsCompactCardStyle(background: cardBackground)
+    }
+
+    private var settingsDivider: some View {
+        Divider()
+            .background(Color(.separator))
+            .padding(.leading, 60)
     }
 
     private var darkModeRow: some View {
@@ -121,28 +137,13 @@ struct SettingsView: View {
             icon: isDarkMode ? "moon.fill" : "sun.max.fill",
             iconColor: isDarkMode ? .purple : .orange,
             title: "Dark Mode",
-            subtitle: "Switch between light and dark appearance"
+            subtitle: "Switch light/dark mode",
+            compact: true
         ) {
             Toggle("", isOn: $isDarkMode)
                 .labelsHidden()
                 .scaleEffect(0.72, anchor: .trailing)
         }
-    }
-
-    private var defaultCurrenciesRow: some View {
-        Button {
-            showingDefaultSettings = true
-        } label: {
-            settingsRow(
-                icon: "gear",
-                iconColor: .blue,
-                title: "Default Currencies",
-                subtitle: "Set your default from and to currencies"
-            ) {
-                settingsChevron
-            }
-        }
-        .buttonStyle(.plain)
     }
 
     private var historyRow: some View {
@@ -153,39 +154,8 @@ struct SettingsView: View {
                 icon: "chart.line.uptrend.xyaxis",
                 iconColor: .green,
                 title: "Exchange Rate History",
-                subtitle: "View historical rates for your currency pair"
-            ) {
-                settingsChevron
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var infoRow: some View {
-        Button {
-            showingDisclaimer = true
-        } label: {
-            settingsRow(
-                icon: "exclamationmark.circle",
-                iconColor: .orange,
-                title: "Disclaimer",
-                subtitle: "Important information about exchange rates"
-            ) {
-                settingsChevron
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var contactUsRow: some View {
-        Button {
-            showingContactUs = true
-        } label: {
-            settingsRow(
-                icon: "envelope",
-                iconColor: .teal,
-                title: "Contact Us",
-                subtitle: "Send us a message or get support"
+                subtitle: "View historical rates",
+                compact: true
             ) {
                 settingsChevron
             }
@@ -199,35 +169,72 @@ struct SettingsView: View {
             .foregroundStyle(.tertiary)
     }
 
+    private func settingsNavigationRow<Destination: View>(
+        destination: Destination,
+        icon: String,
+        iconColor: Color,
+        title: String,
+        subtitle: String
+    ) -> some View {
+        NavigationLink {
+            destination
+        } label: {
+            settingsRow(icon: icon, iconColor: iconColor, title: title, subtitle: subtitle) {
+                settingsChevron
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     private func settingsRow<Trailing: View>(
         icon: String,
         iconColor: Color,
         title: String,
         subtitle: String,
+        compact: Bool = false,
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(iconColor)
-                .frame(width: 30)
+            settingsIcon(icon: icon, color: iconColor, compact: compact)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: compact ? 1 : 2) {
                 Text(title)
                     .font(.body)
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
             trailing()
+        }
+        .padding(.horizontal, compact ? 12 : 16)
+        .padding(.vertical, compact ? 6 : 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func settingsIcon(icon: String, color: Color, compact: Bool = false) -> some View {
+        let size: CGFloat = compact ? 28 : 32
+        let iconSize: CGFloat = compact ? 14 : 16
+        return ZStack {
+            Circle()
+                .fill(color.opacity(0.2))
+                .frame(width: size, height: size)
+            Image(systemName: icon)
+                .font(.system(size: iconSize, weight: .medium))
+                .foregroundStyle(color)
         }
     }
 }
 
 #Preview {
-    SettingsView(viewModel: CurrencyConverterViewModel())
+    NavigationStack {
+        SettingsView(viewModel: CurrencyConverterViewModel())
+    }
 }

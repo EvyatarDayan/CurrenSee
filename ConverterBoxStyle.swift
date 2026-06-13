@@ -47,6 +47,32 @@ enum AmountInputLimit {
     }
 }
 
+enum AmountDisplayFormat {
+    private static let formatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.usesGroupingSeparator = true
+        return formatter
+    }()
+
+    static var decimalSeparator: String { "." }
+
+    static func format(_ value: Double) -> String {
+        formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+    }
+
+    static func formatInput(_ rawAmount: String) -> String {
+        let trimmed = rawAmount.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != "." else {
+            return format(0)
+        }
+        return format(Double(trimmed) ?? 0)
+    }
+}
+
 extension View {
     func converterBoxShadow() -> some View {
         shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
@@ -190,11 +216,7 @@ struct ConversionResultSection: View {
     }
 
     private func formatNumber(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+        AmountDisplayFormat.format(value)
     }
 }
 

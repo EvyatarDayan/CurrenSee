@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 struct Currency: Identifiable, Hashable {
     let id = UUID()
@@ -224,6 +225,10 @@ struct LastConversion: Codable, Equatable {
         UserDefaults.standard.set(data, forKey: Self.storageKey)
     }
 
+    static func clearSaved() {
+        UserDefaults.standard.removeObject(forKey: storageKey)
+    }
+
     func fromCurrency() -> Currency? {
         Currency.allCurrencies.first { $0.code == fromCurrencyCode }
     }
@@ -237,7 +242,7 @@ struct LastConversion: Codable, Equatable {
 class CurrencyConverterViewModel: ObservableObject {
     @Published var fromCurrency: Currency
     @Published var toCurrency: Currency
-    @Published var amount: String = "1"
+    @Published var amount: String = ""
     @Published var convertedAmount: Double = 0
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -246,13 +251,14 @@ class CurrencyConverterViewModel: ObservableObject {
     @Published private(set) var conversionTick = 0
 
     private var rates: [String: Double] = [:]
+    private var cancellables = Set<AnyCancellable>()
     private static let lastUpdateTimeKey = "lastUpdateTime"
+    private static let selectedPairKey = "selectedCurrencyPair"
 
     init() {
-        let defaultFrom = UserDefaults.standard.string(forKey: "defaultFromCurrency") ?? "USD"
-        let defaultTo = UserDefaults.standard.string(forKey: "defaultToCurrency") ?? "EUR"
-        self.fromCurrency = Currency.allCurrencies.first { $0.code == defaultFrom } ?? Currency.allCurrencies[0]
-        self.toCurrency = Currency.allCurrencies.first { $0.code == defaultTo } ?? Currency.allCurrencies[1]
+        let (fromCode, toCode) = Self.loadSelectedCurrencyCodes()
+        self.fromCurrency = Currency.allCurrencies.first { $0.code == fromCode } ?? Currency.allCurrencies[0]
+        self.toCurrency = Currency.allCurrencies.first { $0.code == toCode } ?? Currency.allCurrencies[1]
 
         if let saved = LastConversion.load() {
             self.lastConversion = saved
@@ -260,15 +266,71 @@ class CurrencyConverterViewModel: ObservableObject {
             self.convertedAmount = saved.convertedAmount
         }
         self.lastUpdateTime = UserDefaults.standard.string(forKey: Self.lastUpdateTimeKey)
+        setupCurrencyPersistence()
+        persistSelectedCurrencies()
     }
-    
-    func updateDefaultsIfNeeded() {
-        let defaultFrom = UserDefaults.standard.string(forKey: "defaultFromCurrency") ?? "USD"
-        let defaultTo = UserDefaults.standard.string(forKey: "defaultToCurrency") ?? "EUR"
-        self.fromCurrency = Currency.allCurrencies.first { $0.code == defaultFrom } ?? Currency.allCurrencies[0]
-        self.toCurrency = Currency.allCurrencies.first { $0.code == defaultTo } ?? Currency.allCurrencies[1]
+
+    private static func loadSelectedCurrencyCodes() -> (String, String) {
+        if let pair = UserDefaults.standard.stringArray(forKey: selectedPairKey), pair.count == 2 {
+            return (pair[0], pair[1])
+        }
+
+        let fromCode = UserDefaults.standard.string(forKey: "selectedFromCurrency")
+            ?? UserDefaults.standard.string(forKey: "defaultFromCurrency")
+            ?? "USD"
+        let toCode = UserDefaults.standard.string(forKey: "selectedToCurrency")
+            ?? UserDefaults.standard.string(forKey: "defaultToCurrency")
+            ?? "EUR"
+        return (fromCode, toCode)
     }
-    
+
+    private func setupCurrencyPersistence() {
+        Publishers.CombineLatest($fromCurrency, $toCurrency)
+            .dropFirst()
+            .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
+            .sink { [weak self] _, _ in
+                self?.persistSelectedCurrencies()
+            }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest3($amount, $fromCurrency, $toCurrency)
+            .debounce(for: .milliseconds(350), scheduler: RunLoop.main)
+            .sink { [weak self] amount, _, _ in
+                guard let self else { return }
+                let trimmed = amount.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    convertedAmount = 0
+                    lastConversion = nil
+                    LastConversion.clearSaved()
+                    errorMessage = nil
+                    return
+                }
+                convert()
+            }
+            .store(in: &cancellables)
+    }
+
+    func swapCurrencies() {
+        let temporary = fromCurrency
+        fromCurrency = toCurrency
+        toCurrency = temporary
+        persistSelectedCurrencies()
+    }
+
+    func persistSelectedCurrencies() {
+        UserDefaults.standard.set(
+            [fromCurrency.code, toCurrency.code],
+            forKey: Self.selectedPairKey
+        )
+    }
+
+    func clearAmountAndResults() {
+        amount = ""
+        convertedAmount = 0
+        lastConversion = nil
+        LastConversion.clearSaved()
+    }
+
     func convert() {
         Task {
             await fetchRatesAndConvert()

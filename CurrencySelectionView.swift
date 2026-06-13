@@ -55,19 +55,26 @@ struct CurrencySelectionView: View {
             CurrencyPickerView(selectedCurrency: $viewModel.fromCurrency)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .onDisappear {
+                    viewModel.persistSelectedCurrencies()
+                }
         }
         .sheet(isPresented: $showingToPicker) {
             CurrencyPickerView(selectedCurrency: $viewModel.toCurrency)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .onDisappear {
+                    viewModel.persistSelectedCurrencies()
+                }
+        }
+        .onDisappear {
+            viewModel.persistSelectedCurrencies()
         }
     }
 
     private var swapCurrenciesButton: some View {
         Button(action: {
-            let temp = viewModel.fromCurrency
-            viewModel.fromCurrency = viewModel.toCurrency
-            viewModel.toCurrency = temp
+            viewModel.swapCurrencies()
         }) {
             Image(systemName: "arrow.up.arrow.down")
                 .font(.system(size: 22, weight: .semibold))
