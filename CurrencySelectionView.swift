@@ -80,13 +80,7 @@ struct CurrencySelectionView: View {
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundColor(.appRed)
                 .frame(width: 52, height: 52)
-                .background(Color(.systemBackground))
-                .clipShape(Circle())
-                .overlay {
-                    Circle()
-                        .stroke(Color(.systemGray5), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
+                .circularIconBadgeStyle()
         }
         .buttonStyle(.plain)
     }

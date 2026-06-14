@@ -3,6 +3,8 @@ import SwiftUI
 struct WelcomeView: View {
     var onStart: () -> Void
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage(WelcomeStorage.skipWelcomeKey) private var skipWelcomeScreen = false
+    @State private var dontShowAgain = false
 
     var body: some View {
         ZStack {
@@ -10,9 +12,8 @@ struct WelcomeView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer()
-
                 logoView
+                    .padding(.top, 150)
                     .padding(.bottom, 32)
 
                 Text("Welcome to Curren$ee")
@@ -29,7 +30,7 @@ struct WelcomeView: View {
 
                 Spacer()
 
-                Button(action: onStart) {
+                Button(action: startApp) {
                     Text("Start")
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -40,21 +41,47 @@ struct WelcomeView: View {
                         .clipShape(Capsule())
                 }
                 .padding(.horizontal, 32)
-                .padding(.bottom, 48)
+                .padding(.bottom, 130)
+                .padding(.top, -150)
+
+                Button {
+                    dontShowAgain.toggle()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: dontShowAgain ? "checkmark.square.fill" : "square")
+                            .font(.title3)
+                            .foregroundStyle(dontShowAgain ? Color.appRed : Color.gray)
+
+                        Text("Don't show this again")
+                            .font(.subheadline)
+                            .foregroundStyle(.gray)
+                            
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, -10)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 32)
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
     }
 
-    private var logoView: some View {
-        HStack(spacing: 0) {
-            Text("Curren")
-                .font(.system(size: 52, weight: .bold))
-                .foregroundColor(.appRed)
-            Text("$ee")
-                .font(.system(size: 52, weight: .bold))
-                .foregroundColor(.appRed)
+    private func startApp() {
+        if dontShowAgain {
+            skipWelcomeScreen = true
         }
+        onStart()
+    }
+
+    private var logoView: some View {
+        Image("CurrenSeeLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 160, height: 160)
     }
 }
 

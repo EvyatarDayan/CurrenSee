@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ManualConverterView: View {
     @ObservedObject var viewModel: CurrencyConverterViewModel
-    @AppStorage("isDarkMode") private var isDarkMode = true
 
     private var displayAmount: String {
         AmountDisplayFormat.formatInput(viewModel.amount)
@@ -28,26 +27,19 @@ struct ManualConverterView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 8)
 
-            VStack(spacing: 12) {
-                currencyAmountRow(
-                    currency: viewModel.fromCurrency,
-                    amount: displayAmount,
-                    isInput: true
+            VStack(spacing: 0) {
+                CurrencyConversionResultsView(
+                    sourceAmount: displayAmount,
+                    convertedAmount: displayConverted,
+                    fromCurrency: viewModel.fromCurrency,
+                    toCurrency: viewModel.toCurrency
                 )
 
-                VStack(spacing: 6) {
-                    currencyAmountRow(
-                        currency: viewModel.toCurrency,
-                        amount: displayConverted,
-                        isInput: false
-                    )
-
-                    RatesLastUpdatedLabel(lastUpdateTime: viewModel.lastUpdateTime)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
+                RatesLastUpdatedLabel(lastUpdateTime: viewModel.lastUpdateTime)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 10)
             }
-            .animation(nil, value: viewModel.amount)
-            .animation(nil, value: viewModel.convertedAmount)
+            .padding(.horizontal, 12)
 
             Spacer(minLength: 0)
         }
@@ -63,52 +55,6 @@ struct ManualConverterView: View {
                     .padding(.bottom, 32)
             }
         }
-    }
-
-    private func currencyAmountRow(
-        currency: Currency,
-        amount: String,
-        isInput: Bool
-    ) -> some View {
-        VStack(spacing: 6) {
-            HStack(alignment: .center, spacing: 12) {
-                HStack(spacing: 6) {
-                    Text(currency.flag)
-                    Text(currency.code)
-                        .font(.title3.weight(.semibold))
-                }
-                .foregroundStyle(isDarkMode ? .white : .primary)
-                .frame(width: 96, alignment: .leading)
-
-                StableAmountText(
-                    text: amount,
-                    color: isInput ? (isDarkMode ? .white : .primary) : .appRed
-                )
-            }
-            .frame(height: 52)
-
-            Rectangle()
-                .fill(isDarkMode ? Color.white.opacity(0.35) : Color.primary.opacity(0.25))
-                .frame(height: 1)
-        }
-    }
-}
-
-private struct StableAmountText: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 44, weight: .bold))
-            .monospacedDigit()
-            .foregroundStyle(color)
-            .lineLimit(1)
-            .minimumScaleFactor(0.35)
-            .allowsTightening(true)
-            .multilineTextAlignment(.trailing)
-            .frame(maxWidth: .infinity, minHeight: 52, maxHeight: 52, alignment: .trailing)
-            .animation(nil, value: text)
     }
 }
 
@@ -133,6 +79,9 @@ private struct IntegratedNumericKeypad: View {
         isDarkMode ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
     }
 
+    private let dividerInset: CGFloat = 10
+    private let dividerThickness: CGFloat = 2
+
     var body: some View {
         GeometryReader { geometry in
             let rowHeight = geometry.size.height / CGFloat(rows.count)
@@ -141,25 +90,30 @@ private struct IntegratedNumericKeypad: View {
                 ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
                     HStack(spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { columnIndex, key in
-                            KeypadKeyButton(key: key, isDarkMode: isDarkMode) {
-                                handleKey(key)
+                            VStack(spacing: 0) {
+                                KeypadKeyButton(key: key, isDarkMode: isDarkMode) {
+                                    handleKey(key)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                                if rowIndex < rows.count - 1 {
+                                    Rectangle()
+                                        .fill(dividerColor)
+                                        .frame(height: dividerThickness)
+                                        .padding(.horizontal, dividerInset)
+                                }
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                             if columnIndex < row.count - 1 {
                                 Rectangle()
                                     .fill(dividerColor)
-                                    .frame(width: 1)
+                                    .frame(width: dividerThickness)
+                                    .padding(.vertical, dividerInset)
                             }
                         }
                     }
                     .frame(height: rowHeight)
-
-                    if rowIndex < rows.count - 1 {
-                        Rectangle()
-                            .fill(dividerColor)
-                            .frame(height: 1)
-                    }
                 }
             }
         }

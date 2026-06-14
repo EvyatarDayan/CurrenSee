@@ -2,6 +2,10 @@ import SwiftUI
 import AVFoundation
 import Vision
 
+private enum CameraResultsChrome {
+    static let backgroundOpacity = 0.58
+}
+
 struct CameraScanView: View {
     @ObservedObject var viewModel: CurrencyConverterViewModel
     @ObservedObject var scanner: CameraTextScanner
@@ -10,6 +14,12 @@ struct CameraScanView: View {
     @State private var autoClearTask: Task<Void, Never>?
 
     private let autoClearDelay: TimeInterval = 20
+
+    private enum CameraChrome {
+        static let cornerRadius: CGFloat = 12
+        static let borderWidth: CGFloat = 3
+        static let borderColor = Color.black
+    }
 
     private var canConvert: Bool {
         scanner.detectedAmount != nil && !viewModel.cameraIsLoading && !showClearButton
@@ -64,7 +74,11 @@ struct CameraScanView: View {
                     }
                     .disabled(showClearButton ? false : !canConvert)
                     .background(actionButtonColor)
-                    .cornerRadius(12)
+                    .clipShape(RoundedRectangle(cornerRadius: CameraChrome.cornerRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: CameraChrome.cornerRadius, style: .continuous)
+                            .stroke(CameraChrome.borderColor, lineWidth: CameraChrome.borderWidth)
+                    }
                     .converterBoxShadow()
                     .frame(maxWidth: .infinity)
                     .frame(height: buttonHeight)
@@ -138,12 +152,11 @@ struct CameraScanView: View {
 
     private var cameraSection: some View {
         GeometryReader { cameraGeometry in
-            let overlayHorizontalPadding: CGFloat = 12
-            let contentWidth = max(0, cameraGeometry.size.width - overlayHorizontalPadding * 2)
+            let contentWidth = cameraGeometry.size.width
 
-            ZStack {
+            ZStack(alignment: .bottom) {
                 if scanner.permissionDenied {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: CameraChrome.cornerRadius, style: .continuous)
                         .fill(Color(.systemGray5))
                         .overlay {
                             VStack(spacing: 12) {
@@ -161,23 +174,19 @@ struct CameraScanView: View {
                     CameraPreviewView(scanner: scanner)
                 }
 
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.appRed, lineWidth: 3)
-
-                VStack {
-                    Spacer()
-                    CameraConversionBannerView(
-                        sourceAmount: displaySourceAmount,
-                        convertedAmount: displayConvertedAmount,
-                        fromCurrency: viewModel.fromCurrency,
-                        toCurrency: viewModel.toCurrency,
-                        contentWidth: contentWidth
-                    )
-                        .padding(.horizontal, overlayHorizontalPadding)
-                        .padding(.bottom, 16)
-                }
+                CameraConversionBannerView(
+                    sourceAmount: AmountDisplayFormat.format(displaySourceAmount),
+                    convertedAmount: AmountDisplayFormat.format(displayConvertedAmount),
+                    fromCurrency: viewModel.fromCurrency,
+                    toCurrency: viewModel.toCurrency,
+                    contentWidth: contentWidth
+                )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: CameraChrome.cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: CameraChrome.cornerRadius, style: .continuous)
+                    .stroke(CameraChrome.borderColor, lineWidth: CameraChrome.borderWidth)
+            }
             .converterBoxShadow()
         }
     }
@@ -187,128 +196,39 @@ struct CameraScanView: View {
     }
 }
 
-private struct MaxAmountWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
 private struct CameraConversionBannerView: View {
-    let sourceAmount: Double
-    let convertedAmount: Double
+    let sourceAmount: String
+    let convertedAmount: String
     let fromCurrency: Currency
     let toCurrency: Currency
     let contentWidth: CGFloat
 
-    @State private var amountColumnWidth: CGFloat = 0
-
-    private let bannerAmountFontSize: CGFloat = 40
-    private let bannerCodeFont: Font = .title3.weight(.semibold)
-
-    private var innerWidth: CGFloat {
-        max(0, contentWidth - 32)
-    }
+    @AppStorage("isDarkMode") private var isDarkMode = true
 
     var body: some View {
-        VStack(spacing: 6) {
-            bannerRow(
-                amount: AmountDisplayFormat.format(sourceAmount),
-                currency: fromCurrency,
-                amountFontSize: bannerAmountFontSize,
-                codeFont: bannerCodeFont,
-                color: .white
+        CurrencyConversionResultsView(
+            sourceAmount: sourceAmount,
+            convertedAmount: convertedAmount,
+            fromCurrency: fromCurrency,
+            toCurrency: toCurrency,
+            dividerStyle: .centerOnly
+        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .frame(width: contentWidth)
+        .background(
+            (isDarkMode ? Color.black : Color(.systemGroupedBackground))
+                .opacity(CameraResultsChrome.backgroundOpacity)
+        )
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 12,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 12,
+                style: .continuous
             )
-
-            HStack(spacing: 4) {
-                HStack {
-                    Spacer(minLength: 0)
-                    Image(systemName: "arrow.down")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.green)
-                    Spacer(minLength: 0)
-                }
-                .frame(width: max(amountColumnWidth, 1))
-
-                cameraCurrencyMeta(fromCurrency, codeFont: bannerCodeFont)
-                    .opacity(0)
-                    .accessibilityHidden(true)
-            }
-
-            bannerRow(
-                amount: AmountDisplayFormat.format(convertedAmount),
-                currency: toCurrency,
-                amountFontSize: bannerAmountFontSize,
-                codeFont: bannerCodeFont,
-                color: .green
-            )
-        }
-        .frame(maxWidth: contentWidth)
-        .frame(maxWidth: .infinity)
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color.black.opacity(0.42))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .onPreferenceChange(MaxAmountWidthKey.self) { amountColumnWidth = $0 }
-    }
-
-    private func bannerRow(
-        amount: String,
-        currency: Currency,
-        amountFontSize: CGFloat,
-        codeFont: Font,
-        color: Color
-    ) -> some View {
-        HStack(spacing: 4) {
-            CameraFittingAmountText(
-                text: amount,
-                fontSize: amountFontSize,
-                weight: .bold,
-                color: color
-            )
-            .background {
-                GeometryReader { geometry in
-                    Color.clear.preference(
-                        key: MaxAmountWidthKey.self,
-                        value: geometry.size.width
-                    )
-                }
-            }
-            .fixedSize(horizontal: true, vertical: false)
-
-            cameraCurrencyMeta(currency, codeFont: codeFont)
-        }
-        .frame(maxWidth: innerWidth, alignment: .center)
-    }
-
-    private func cameraCurrencyMeta(_ currency: Currency, codeFont: Font) -> some View {
-        HStack(spacing: 4) {
-            Text(currency.flag)
-                .fixedSize()
-            Text(currency.code)
-                .font(codeFont)
-                .foregroundStyle(.blue)
-                .fixedSize()
-        }
-    }
-}
-
-private struct CameraFittingAmountText: View {
-    let text: String
-    let fontSize: CGFloat
-    let weight: Font.Weight
-    let color: Color
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: fontSize, weight: weight))
-            .monospacedDigit()
-            .foregroundStyle(color)
-            .lineLimit(1)
-            .minimumScaleFactor(0.35)
-            .allowsTightening(true)
+        )
     }
 }
 

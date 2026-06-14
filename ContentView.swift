@@ -91,6 +91,16 @@ struct ContentView: View {
                         }
                     }
                 }
+                .overlay {
+                    if showingCurrencySelection {
+                        Color.clear
+                            .ignoresSafeArea()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                showingCurrencySelection = false
+                            }
+                    }
+                }
                 .sheet(isPresented: $showingCurrencySelection) {
                     CurrencySelectionView(viewModel: viewModel)
                 }

@@ -107,146 +107,160 @@ extension View {
     func converterBoxShadow() -> some View {
         shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
     }
+
+    func circularIconBadgeStyle() -> some View {
+        background(Color(.systemBackground))
+            .clipShape(Circle())
+            .overlay {
+                Circle()
+                    .stroke(Color(.systemGray5), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
+    }
 }
 
-private struct FittingResultAmountText: View {
-    enum Style {
-        case source
-        case converted
-
-        var font: Font {
-            switch self {
-            case .source:
-                return .title2.bold()
-            case .converted:
-                return .system(size: 48, weight: .bold)
-            }
-        }
-
-        var minimumScale: CGFloat {
-            switch self {
-            case .source:
-                return 0.5
-            case .converted:
-                return 0.35
-            }
-        }
+private struct ConversionDirectionArrow: View {
+    var body: some View {
+        Image(systemName: "arrow.down")
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(.appRed)
+            .frame(width: 36, height: 36)
+            .circularIconBadgeStyle()
     }
+}
 
+struct ConversionAmountText: View {
     let text: String
-    let style: Style
     let color: Color
 
     var body: some View {
         Text(text)
-            .font(style.font)
+            .font(.system(size: 44, weight: .bold))
             .monospacedDigit()
-            .foregroundColor(color)
+            .foregroundStyle(color)
             .lineLimit(1)
-            .minimumScaleFactor(style.minimumScale)
+            .minimumScaleFactor(0.35)
             .allowsTightening(true)
-            .fixedSize(horizontal: false, vertical: true)
-            .layoutPriority(-1)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, minHeight: 52, maxHeight: 52, alignment: .leading)
+            .animation(nil, value: text)
     }
 }
 
-struct ConversionResultSection: View {
-    @ObservedObject var viewModel: CurrencyConverterViewModel
+struct CurrencyConversionResultsView: View {
+    enum DividerStyle {
+        case underEachRow
+        case centerOnly
+    }
+
+    let sourceAmount: String
+    let convertedAmount: String
+    let fromCurrency: Currency
+    let toCurrency: Currency
+    var dividerStyle: DividerStyle = .underEachRow
+
     @AppStorage("isDarkMode") private var isDarkMode = true
-    @State private var resultsScale: CGFloat = 1.0
+
+    private var dividerColor: Color {
+        isDarkMode ? Color.white.opacity(0.35) : Color.primary.opacity(0.25)
+    }
 
     var body: some View {
-        let display = viewModel.lastConversion ?? LastConversion(
-            sourceAmount: 0,
-            convertedAmount: 0,
-            fromCurrencyCode: viewModel.fromCurrency.code,
-            toCurrencyCode: viewModel.toCurrency.code
-        )
-        let fromCurrency = display.fromCurrency() ?? viewModel.fromCurrency
-        let toCurrency = display.toCurrency() ?? viewModel.toCurrency
-
-        ZStack {
-            VStack(spacing: 8) {
-                Spacer(minLength: 0)
-
-                VStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        FittingResultAmountText(
-                            text: formatNumber(display.sourceAmount),
-                            style: .source,
-                            color: isDarkMode ? .white : .black
-                        )
-                        Text(fromCurrency.flag)
-                            .fixedSize()
-                        Text(fromCurrency.code)
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                            .fixedSize()
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    Image(systemName: "arrow.down")
-                        .font(.caption)
-                        .foregroundColor(.appRed)
-
-                    HStack(spacing: 4) {
-                        FittingResultAmountText(
-                            text: formatNumber(display.convertedAmount),
-                            style: .converted,
-                            color: .appRed
-                        )
-                        Text(toCurrency.flag)
-                            .fixedSize()
-                        Text(toCurrency.code)
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                            .fixedSize()
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .frame(maxWidth: .infinity)
-                .scaleEffect(resultsScale, anchor: .center)
-
-                Spacer(minLength: 0)
-            }
-
-            if let error = viewModel.manualErrorMessage {
-                VStack {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .padding(.top, 8)
-                    Spacer(minLength: 0)
-                }
+        Group {
+            if dividerStyle == .centerOnly {
+                centerOnlyResults
+            } else {
+                underEachRowResults
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 12)
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-        .converterBoxShadow()
-        .onChange(of: viewModel.conversionTick) { _, _ in
-            animateResultsUpdate()
+        .animation(nil, value: sourceAmount)
+        .animation(nil, value: convertedAmount)
+    }
+
+    private var underEachRowResults: some View {
+        VStack(spacing: 0) {
+            currencyAmountRow(
+                currency: fromCurrency,
+                amount: sourceAmount,
+                isSource: true,
+                showsDivider: true
+            )
+
+            ConversionDirectionArrow()
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
+            currencyAmountRow(
+                currency: toCurrency,
+                amount: convertedAmount,
+                isSource: false,
+                showsDivider: true
+            )
+            .padding(.top, 6)
         }
     }
 
-    private func animateResultsUpdate() {
-        resultsScale = 1.0
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.48)) {
-            resultsScale = 1.14
-        }
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.68)) {
-                resultsScale = 1.0
+    private var centerOnlyResults: some View {
+        VStack(spacing: 0) {
+            currencyAmountRow(
+                currency: fromCurrency,
+                amount: sourceAmount,
+                isSource: true,
+                showsDivider: false
+            )
+
+            ZStack {
+                Rectangle()
+                    .fill(dividerColor)
+                    .frame(height: 1)
+
+                ConversionDirectionArrow()
             }
+            .frame(height: 36)
+            .frame(maxWidth: .infinity)
+
+            currencyAmountRow(
+                currency: toCurrency,
+                amount: convertedAmount,
+                isSource: false,
+                showsDivider: false
+            )
         }
     }
 
-    private func formatNumber(_ value: Double) -> String {
-        AmountDisplayFormat.format(value)
+    private func currencyAmountRow(
+        currency: Currency,
+        amount: String,
+        isSource: Bool,
+        showsDivider: Bool
+    ) -> some View {
+        VStack(spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                ConversionAmountText(
+                    text: amount,
+                    color: isSource
+                        ? (isDarkMode ? .white : .primary)
+                        : .appRed
+                )
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 6) {
+                    Text(currency.flag)
+                    Text(currency.code)
+                        .font(.title3.weight(.semibold))
+                }
+                .foregroundStyle(isDarkMode ? .white : .primary)
+                .frame(width: 96, alignment: .trailing)
+            }
+            .frame(height: 52)
+
+            if showsDivider {
+                Rectangle()
+                    .fill(dividerColor)
+                    .frame(height: 1)
+            }
+        }
     }
 }
 

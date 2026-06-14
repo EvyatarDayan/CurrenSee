@@ -21,7 +21,6 @@ private extension View {
 }
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: CurrencyConverterViewModel
 
@@ -100,12 +99,6 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") { dismiss() }
-                    .foregroundColor(.appRed)
-            }
-        }
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .sheet(isPresented: $showingHistory) {
             HistoryView(converterViewModel: viewModel)
