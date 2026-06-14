@@ -1,4 +1,19 @@
 import SwiftUI
+import UIKit
+
+private enum CurrencySheetPresentation {
+    static var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    static var detents: Set<PresentationDetent> {
+        isPad ? [.large] : [.medium]
+    }
+
+    static var backgroundInteractionDetent: PresentationDetent {
+        isPad ? .large : .medium
+    }
+}
 
 struct CurrencySelectionView: View {
     @ObservedObject var viewModel: CurrencyConverterViewModel
@@ -47,9 +62,11 @@ struct CurrencySelectionView: View {
         .padding(.top, 4)
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .background(SheetUndimmingBackground())
-        .presentationDetents([.medium])
+        .presentationDetents(CurrencySheetPresentation.detents)
         .presentationDragIndicator(.visible)
-        .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        .presentationBackgroundInteraction(
+            .enabled(upThrough: CurrencySheetPresentation.backgroundInteractionDetent)
+        )
         .presentationBackground(Color(.systemBackground))
         .sheet(isPresented: $showingFromPicker) {
             CurrencyPickerView(selectedCurrency: $viewModel.fromCurrency)
@@ -85,6 +102,10 @@ struct CurrencySelectionView: View {
         .buttonStyle(.plain)
     }
 
+    private var currencyFieldBackground: Color {
+        isDarkMode ? Color(white: 0.75) : Color(.systemGray6)
+    }
+
     private func currencyRow(title: String, currency: Currency, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -98,15 +119,16 @@ struct CurrencySelectionView: View {
                     Text(currency.code)
                         .font(.title2)
                         .bold()
+                        .foregroundColor(isDarkMode ? .black : .primary)
                     Text(currency.name)
-                        .foregroundColor(.gray)
+                        .foregroundColor(isDarkMode ? Color(white: 0.45) : .gray)
                         .lineLimit(1)
                     Spacer()
                     Image(systemName: "chevron.down")
-                        .foregroundColor(.gray)
+                        .foregroundColor(isDarkMode ? Color(white: 0.45) : .gray)
                 }
                 .padding()
-                .background(Color(.systemGray6))
+                .background(currencyFieldBackground)
                 .cornerRadius(12)
             }
             .buttonStyle(.plain)
@@ -125,7 +147,13 @@ private struct SheetUndimmingBackground: UIViewControllerRepresentable {
 private final class SheetUndimmingViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        sheetPresentationController?.largestUndimmedDetentIdentifier = .medium
+        guard let sheet = sheetPresentationController else { return }
         presentingViewController?.view.tintAdjustmentMode = .normal
+
+        if CurrencySheetPresentation.isPad {
+            sheet.largestUndimmedDetentIdentifier = .large
+        } else {
+            sheet.largestUndimmedDetentIdentifier = .medium
+        }
     }
 }
